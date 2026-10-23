@@ -2,7 +2,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const env = process.env;
+// Una variable vacía en .env (p. ej. "QR_SECRET=") cuenta como no definida.
+const env = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v?.trim()));
 const produccion = env.NODE_ENV === 'production';
 
 if (produccion && (!env.SESSION_SECRET || !env.QR_SECRET)) {

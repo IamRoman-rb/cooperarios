@@ -7,7 +7,14 @@ import { sembrarBase } from './seed.js';
 
 const [email, nombre, apellido, dni, roles = 'admin'] = process.argv.slice(2);
 if (!email || !nombre || !apellido || !dni) {
-  console.error('Uso: alta-inicial <email> <nombre> <apellido> <dni> [roles separados por coma]');
+  console.error([
+    'Faltan los datos del primer usuario.',
+    '',
+    'Uso:     npm run alta-inicial -- <email> <nombre> <apellido> <dni> [roles separados por coma]',
+    'Ejemplo: npm run alta-inicial -- admin@cooperariosclub.com.ar Ana Pérez 30111222 admin,sistemas',
+    '',
+    'Es para la instalación de producción. En desarrollo no hace falta: usá los usuarios @demo.coop.',
+  ].join('\n'));
   process.exit(1);
 }
 
