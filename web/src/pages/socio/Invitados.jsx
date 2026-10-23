@@ -5,9 +5,9 @@ import { pesos, fecha, hoy, fechaHora } from '../../lib/formato.js';
 import { Boton, Tarjeta, Encabezado, Consulta, Estado, Campo, Entrada, Tabla, Aviso } from '../../components/ui.jsx';
 
 export default function Invitados() {
-  const q = useDatos('/api/socio/invitados');
+  const q = useDatos('/api/mi/invitados');
   const { register, handleSubmit, reset, formState: { errors } } = useForm({ defaultValues: { fecha: hoy() } });
-  const registrar = useAccion((d) => api.post('/api/socio/invitados', d), { ok: 'Invitado registrado. Se presenta con DNI en portería.', invalidar: ['/api/socio'], alTerminar: () => reset({ fecha: hoy(), nombre: '', dni: '' }) });
+  const registrar = useAccion((d) => api.post('/api/mi/invitados', d), { ok: 'Invitado registrado. Se presenta con DNI en portería.', invalidar: ['/api/mi'], alTerminar: () => reset({ fecha: hoy(), nombre: '', dni: '' }) });
   return (
     <>
       <Encabezado titulo="Invitados" subtitulo="Registrá a tus invitados no socios mayores de 18. La entrada se suma a tu cuenta." />

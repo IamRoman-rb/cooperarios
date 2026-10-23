@@ -15,13 +15,13 @@ const TIPOS = [
 ];
 
 export default function Tramites() {
-  const q = useDatos('/api/socio/solicitudes');
+  const q = useDatos('/api/mi/solicitudes');
   const { usuario } = useSesion();
   const [vista, setVista] = useState('nuevo');
   const [tipo, setTipo] = useState('reclamo');
   const [datos, setDatos] = useState({});
   const [ticket, setTicket] = useState(null);
-  const enviar = useAccion(() => api.post('/api/socio/solicitudes', { tipo, datos }), { ok: 'Solicitud enviada a Administración', invalidar: ['/api/socio'], alTerminar: () => { setDatos({}); setVista('historial'); } });
+  const enviar = useAccion(() => api.post('/api/mi/solicitudes', { tipo, datos }), { ok: 'Solicitud enviada a Administración', invalidar: ['/api/mi'], alTerminar: () => { setDatos({}); setVista('historial'); } });
   const campo = (k) => ({ value: datos[k] ?? '', onChange: (e) => setDatos({ ...datos, [k]: e.target.value }) });
 
   return (

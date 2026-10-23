@@ -131,7 +131,7 @@ r.post('/inventario/:id/movimiento', permiso('inventario', 'gestionar'), (req, r
   if (it.cantidad + delta < 0) throw invalido('No hay stock suficiente');
   db.prepare('UPDATE inventario SET cantidad = cantidad + ? WHERE id = ?').run(delta, it.id);
   auditar(req, 'movimiento_inventario', 'inventario', it.id, { cantidad: it.cantidad }, { cantidad: it.cantidad + delta, motivo });
-  if (it.cantidad + delta <= it.stock_minimo) notificar({ rol: 'mantenimiento', tipo: 'inventario', titulo: `Stock bajo mínimo: ${it.nombre}`, referencia: '/mantenimiento/inventario' });
+  if (it.cantidad + delta <= it.stock_minimo) notificar({ rol: 'mantenimiento', tipo: 'inventario', titulo: `Stock bajo mínimo: ${it.nombre}`, referencia: '/inventario' });
   res.json({ cantidad: it.cantidad + delta });
 });
 
@@ -152,8 +152,8 @@ r.post('/compras', permiso('compras', 'solicitar', 'gestionar'), (req, res) => {
   if (esDelegado && d.actividad_id && !ambitoActividades(req.usuario).includes(d.actividad_id)) throw prohibido('Solo para tu actividad');
   const id = getDb().prepare('INSERT INTO solicitudes_compra (solicitante_id, origen, actividad_id, ticket_id, descripcion, monto_estimado) VALUES (?, ?, ?, ?, ?, ?) RETURNING id')
     .get(req.usuario.id, esDelegado ? 'subcomision' : 'mantenimiento', d.actividad_id ?? (esDelegado ? ambitoActividades(req.usuario)[0] : null), d.ticket_id ?? null, d.descripcion, d.monto_estimado).id;
-  notificar({ rol: 'directiva', tipo: 'aprobacion', titulo: `Solicitud de compra: ${d.descripcion.slice(0, 60)}`, referencia: '/directiva/aprobaciones' });
-  notificar({ rol: 'contabilidad', tipo: 'compra', titulo: `Nueva solicitud de compra`, referencia: '/contabilidad/compras' });
+  notificar({ rol: 'directiva', tipo: 'aprobacion', titulo: `Solicitud de compra: ${d.descripcion.slice(0, 60)}`, referencia: '/aprobaciones' });
+  notificar({ rol: 'contabilidad', tipo: 'compra', titulo: `Nueva solicitud de compra`, referencia: '/compras' });
   res.status(201).json({ id });
 });
 
@@ -165,7 +165,7 @@ r.post('/compras/:id/resolver', permiso('compras', 'aprobar', 'gestionar'), (req
   if (d.estado !== 'comprada' && !puede(req.usuario, 'compras', 'aprobar')) throw prohibido('Autoriza la Comisión Directiva');
   if (sc.solicitante_id === req.usuario.id) throw prohibido('Quien solicita no autoriza');
   db.prepare('UPDATE solicitudes_compra SET estado = ?, motivo = ?, autorizada_por = COALESCE(autorizada_por, ?) WHERE id = ?').run(d.estado, d.motivo ?? null, req.usuario.id, sc.id);
-  notificar({ usuarioId: sc.solicitante_id, tipo: 'compra', titulo: `Tu solicitud de compra fue ${d.estado}`, referencia: '/mantenimiento/solicitudes-compra' });
+  notificar({ usuarioId: sc.solicitante_id, tipo: 'compra', titulo: `Tu solicitud de compra fue ${d.estado}`, referencia: '/solicitudes-de-compra' });
   auditar(req, 'resolver_compra', 'solicitudes_compra', sc.id, { estado: sc.estado }, d);
   res.json({ ok: true, en: ahora() });
 });

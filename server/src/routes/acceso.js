@@ -242,7 +242,7 @@ r.post('/acceso/manuales', permiso('habilitacion', 'gestionar'), (req, res) => {
   const id = getDb().prepare(`INSERT INTO habilitaciones_manuales (persona_id, actividad_id, tipo, motivo, desde, hasta, estado, solicitada_por) VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?) RETURNING id`)
     .get(d.persona_id, d.actividad_id ?? null, d.tipo, d.motivo, d.desde, d.hasta, req.usuario.id).id;
   auditar(req, 'solicitar_habilitacion_manual', 'habilitaciones_manuales', id, null, d);
-  notificar({ rol: 'directiva', tipo: 'aprobacion', titulo: `Excepción de habilitación para aprobar`, referencia: '/directiva/aprobaciones' });
+  notificar({ rol: 'directiva', tipo: 'aprobacion', titulo: `Excepción de habilitación para aprobar`, referencia: '/aprobaciones' });
   res.status(201).json({ id });
 });
 

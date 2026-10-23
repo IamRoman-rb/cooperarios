@@ -19,7 +19,7 @@ export default function Inventario() {
             acciones={<Boton icono="add" onClick={() => setEdicion({ nombre: '', categoria: '', ubicacion: '', cantidad: 0, stock_minimo: 0, unidad: 'u' })}>Nuevo ítem</Boton>} />
           <Grilla cols="grid-cols-2" className="mb-space-md">
             <Kpi etiqueta="Ítems" valor={lista.length} icono="inventory_2" />
-            <Kpi etiqueta="Bajo mínimo" valor={lista.filter((i) => i.bajo_minimo).length} icono="warning" tono="critico" a="/mantenimiento/solicitudes-compra" />
+            <Kpi etiqueta="Bajo mínimo" valor={lista.filter((i) => i.bajo_minimo).length} icono="warning" tono="critico" a="/solicitudes-de-compra" />
           </Grilla>
           <Buscador valor={texto} onChange={setTexto} placeholder="Buscar insumo o herramienta" className="mb-space-md" />
           <Tarjeta cuerpo="p-space-md">

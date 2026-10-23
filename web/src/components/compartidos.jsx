@@ -23,7 +23,7 @@ export function FormularioTicket({ alCrear }) {
   const [fotos, setFotos] = useState([]);
   const { register, handleSubmit, reset, formState: { errors } } = useForm({ defaultValues: { prioridad: 'media', categoria: 'otro' } });
   const crear = useAccion(async (d) => api.post('/api/tickets', formData(d, { fotos: await prepararImagenes(fotos) })), {
-    ok: 'Reporte enviado. Te avisamos cuando se resuelva.', invalidar: ['/api/tickets', '/api/socio/solicitudes'],
+    ok: 'Reporte enviado. Te avisamos cuando se resuelva.', invalidar: ['/api/tickets', '/api/mi/solicitudes'],
     alTerminar: (r) => { reset(); setFotos([]); alCrear?.(r); },
   });
   return (
@@ -50,7 +50,7 @@ export function FormularioTicket({ alCrear }) {
 
 /** Recibo o comprobante imprimible. */
 export function Comprobante({ id, url, onCerrar }) {
-  const q = useDatos(id ? url ?? `/api/socio/comprobantes/${id}` : null);
+  const q = useDatos(id ? url ?? `/api/mi/comprobantes/${id}` : null);
   return (
     <Modal abierto={!!id} titulo="Comprobante" onCerrar={onCerrar} pie={<Boton icono="print" variante="suave" onClick={() => window.print()}>Imprimir</Boton>}>
       <Consulta q={q}>

@@ -5,7 +5,7 @@ import { Tarjeta, Encabezado, Consulta, Estado, Avatar, Buscador, Vacio, Barra, 
 
 /** Alumnos por grupo con estado de habilitación, sin montos ni datos clínicos. */
 export default function Grupos() {
-  const q = useDatos('/api/profesor/grupos');
+  const q = useDatos('/api/clases/grupos');
   const [texto, setTexto] = useState('');
   return (
     <>

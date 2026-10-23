@@ -16,7 +16,7 @@ export default function Padron({ gestion }) {
   return (
     <>
       <Encabezado titulo={gestion ? 'Padrón de socios' : 'Padrón institucional'} subtitulo={gestion ? 'Búsqueda, ficha completa, historial y grupo familiar.' : 'Consulta de lectura del padrón.'}
-        acciones={gestion && <Boton icono="person_add" onClick={() => navegar('/admin/socios/nuevo')}>Alta de socio</Boton>} />
+        acciones={gestion && <Boton icono="person_add" onClick={() => navegar('/socios/nuevo')}>Alta de socio</Boton>} />
       {q.data?.resumen && (
         <Grilla className="mb-space-md">
           <Kpi etiqueta="Activos" valor={resumen.activo ?? 0} icono="how_to_reg" tono="exito" />
@@ -33,7 +33,7 @@ export default function Padron({ gestion }) {
         <Consulta q={q}>
           {(d) => (
             <>
-              <Tabla onFila={gestion ? (f) => navegar(`/admin/socios/${f.persona_id}`) : undefined} clave="id" columnas={[
+              <Tabla onFila={gestion ? (f) => navegar(`/socios/${f.persona_id}`) : undefined} clave="id" columnas={[
                 { k: 'nombre', t: 'Socio', r: (s) => <div className="flex items-center gap-3"><Avatar persona={s} tam={36} /><div><p className="font-semibold">{s.apellido}, {s.nombre}</p><p className="text-body-sm text-secondary">N° {s.nro_socio}{s.dni ? ` · DNI ${s.dni}` : ''}</p></div></div> },
                 { k: 'categoria', t: 'Categoría', r: (s) => <span>{s.categoria}{s.fecha_nacimiento ? <span className="text-secondary"> · {edad(s.fecha_nacimiento)} años</span> : ''}</span> },
                 { k: 'fecha_alta', t: 'Alta', r: (s) => fecha(s.fecha_alta) },

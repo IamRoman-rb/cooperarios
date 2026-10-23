@@ -587,7 +587,7 @@ export function sembrar(db) {
   ins('solicitudes', { persona_id: pLucia, tipo: 'reclamo', estado: 'pendiente', datos_json: JSON.stringify({ detalle: 'El agua de las duchas sale fría a la noche.' }) });
   ins('solicitudes', { persona_id: sociosGenerados[3], tipo: 'baja', estado: 'pendiente', datos_json: JSON.stringify({ motivo: 'Mudanza' }) });
   ins('solicitudes', { persona_id: sociosGenerados[5], tipo: 'derechos_datos', estado: 'pendiente', datos_json: JSON.stringify({ derecho: 'acceso', detalle: 'Quiero saber qué datos míos tiene el club.' }) });
-  for (const [u, tipo, titulo, ref] of [[uSocio, 'pago', 'Tu cuota social vence el día 10', '/socio/pagos'], [uSocio, 'revision_medica', 'Emma: certificado recibido, pendiente de validación', '/socio/revision-medica'], [uAdmin, 'solicitud', 'Nueva solicitud de alta de socio', '/admin/solicitudes'], [uMant, 'ticket', 'Se te asignó el ticket de vestuarios', '/mantenimiento/inicio'], [uMedico, 'revision_medica', 'Un certificado externo espera validación', '/medico/certificados']]) {
+  for (const [u, tipo, titulo, ref] of [[uSocio, 'pago', 'Tu cuota social vence el día 10', '/pagos'], [uSocio, 'revision_medica', 'Emma: certificado recibido, pendiente de validación', '/mi-revision-medica'], [uAdmin, 'solicitud', 'Nueva solicitud de alta de socio', '/bandeja-de-solicitudes'], [uMant, 'ticket', 'Se te asignó el ticket de vestuarios', '/mis-tickets'], [uMedico, 'revision_medica', 'Un certificado externo espera validación', '/certificados']]) {
     ins('notificaciones', { usuario_id: u, tipo, titulo, referencia: ref });
   }
 

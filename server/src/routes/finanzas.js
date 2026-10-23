@@ -177,7 +177,7 @@ r.post('/gastos', permiso('gastos', 'gestionar', 'solicitar'), subida('gastos', 
     if (estado === 'registrado' && d.caja_id) movimiento(d.caja_id, 'egreso', -d.importe, d.descripcion, 'gasto', nuevo, req.usuario.id);
     return nuevo;
   });
-  if (estado === 'pendiente_aprobacion') notificar({ rol: gestiona ? 'directiva' : 'contabilidad', tipo: 'aprobacion', titulo: `Gasto para aprobar: ${d.descripcion}`, referencia: gestiona ? '/directiva/aprobaciones' : '/contabilidad/gastos' });
+  if (estado === 'pendiente_aprobacion') notificar({ rol: gestiona ? 'directiva' : 'contabilidad', tipo: 'aprobacion', titulo: `Gasto para aprobar: ${d.descripcion}`, referencia: gestiona ? '/aprobaciones' : '/gastos' });
   auditar(req, 'registrar_gasto', 'gastos', id, null, { ...d, estado });
   res.status(201).json({ id, estado });
 });
@@ -201,7 +201,7 @@ r.post('/gastos/:id/aprobar', permiso('gastos', 'aprobar', 'gestionar'), (req, r
     }
   });
   auditar(req, d.aprobar ? 'aprobar_gasto' : 'rechazar_gasto', 'gastos', g.id, { estado: g.estado }, { estado: d.aprobar ? 'aprobado' : 'anulado', motivo: d.motivo });
-  notificar({ usuarioId: g.registrado_por, tipo: 'gasto', titulo: `Gasto "${g.descripcion}" ${d.aprobar ? 'aprobado' : 'rechazado'}`, referencia: '/contabilidad/gastos' });
+  notificar({ usuarioId: g.registrado_por, tipo: 'gasto', titulo: `Gasto "${g.descripcion}" ${d.aprobar ? 'aprobado' : 'rechazado'}`, referencia: '/gastos' });
   res.json({ ok: true });
 });
 
@@ -369,7 +369,7 @@ r.post('/facturas', permiso('compras', 'gestionar'), (req, res) => {
   const id = getDb().prepare('INSERT INTO facturas_proveedor (proveedor_id, numero, fecha, vence, total, cargada_por) VALUES (?, ?, ?, ?, ?, ?) RETURNING id')
     .get(d.proveedor_id, d.numero, d.fecha, d.vence, d.total, req.usuario.id).id;
   auditar(req, 'cargar_factura', 'facturas_proveedor', id, null, d);
-  if (d.total > umbral()) notificar({ rol: 'directiva', tipo: 'aprobacion', titulo: `Factura sobre el umbral para autorizar: ${d.numero}`, referencia: '/directiva/aprobaciones' });
+  if (d.total > umbral()) notificar({ rol: 'directiva', tipo: 'aprobacion', titulo: `Factura sobre el umbral para autorizar: ${d.numero}`, referencia: '/aprobaciones' });
   res.status(201).json({ id });
 });
 

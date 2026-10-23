@@ -9,14 +9,14 @@ import { Boton, Tarjeta, Encabezado, Consulta, Campo, Entrada, Selector, Area, C
 
 export default function Comunicados({ alcance = 'todos' }) {
   const q = useDatos('/api/comunicados');
-  const prof = useDatos(alcance === 'grupo' ? '/api/profesor/comunicaciones' : null);
+  const prof = useDatos(alcance === 'grupo' ? '/api/clases/comunicaciones' : null);
   const { usuario, roles } = useSesion();
   const ambito = roles.filter((r) => r.codigo === 'subcomision').map((r) => r.actividad_id);
   const [form, setForm] = useState({ titulo: '', cuerpo: '', tipo: alcance === 'todos' ? 'todos' : alcance, id: '', categoria: 'institucional', publico: false });
   const enviar = useAccion(() => api.post('/api/comunicados', {
     titulo: form.titulo, cuerpo: form.cuerpo, categoria: alcance === 'todos' ? form.categoria : 'actividad', publico: form.publico,
     audiencia: form.tipo === 'todos' ? { tipo: 'todos' } : { tipo: form.tipo, id: form.id || opcionesDe(form.tipo)[0]?.value },
-  }), { ok: (r) => `Comunicado enviado a ${r.destinatarios} destinatarios`, invalidar: ['/api/comunicados', '/api/profesor'], alTerminar: () => setForm({ ...form, titulo: '', cuerpo: '' }) });
+  }), { ok: (r) => `Comunicado enviado a ${r.destinatarios} destinatarios`, invalidar: ['/api/comunicados', '/api/clases'], alTerminar: () => setForm({ ...form, titulo: '', cuerpo: '' }) });
 
   function opcionesDe(tipo) {
     const o = q.data?.opciones ?? {};

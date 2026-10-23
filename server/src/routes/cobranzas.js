@@ -114,7 +114,7 @@ r.post('/cobranzas/recordatorios', permiso('cuenta_corriente', 'gestionar'), (re
   let enviados = 0;
   for (const id of persona_ids) {
     const u = usuarioDePersona(id);
-    if (u) { notificar({ usuarioId: u, tipo: 'cobranza', titulo: 'Recordatorio: tenés cargos vencidos. Regularizá en Mis pagos.', referencia: '/socio/pagos' }); enviados++; }
+    if (u) { notificar({ usuarioId: u, tipo: 'cobranza', titulo: 'Recordatorio: tenés cargos vencidos. Regularizá en Mis pagos.', referencia: '/pagos' }); enviados++; }
   }
   res.json({ enviados });
 });
@@ -147,7 +147,7 @@ r.post('/cobranzas/transferencias/:id/revisar', permiso('pagos_online', 'gestion
     return pago;
   });
   const u = usuarioDePersona(t.persona_id);
-  if (u) notificar({ usuarioId: u, tipo: 'pago', titulo: d.aprobar ? `Transferencia acreditada. Recibo ${out.numero}` : `Transferencia rechazada: ${d.motivo}`, referencia: '/socio/pagos' });
+  if (u) notificar({ usuarioId: u, tipo: 'pago', titulo: d.aprobar ? `Transferencia acreditada. Recibo ${out.numero}` : `Transferencia rechazada: ${d.motivo}`, referencia: '/pagos' });
   auditar(req, d.aprobar ? 'aprobar_transferencia' : 'rechazar_transferencia', 'transferencias_informadas', t.id, { estado: 'pendiente' }, { estado: d.aprobar ? 'aprobada' : 'rechazada', motivo: d.motivo });
   res.json({ ok: true, recibo: out?.numero ?? null });
 });

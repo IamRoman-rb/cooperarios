@@ -6,15 +6,15 @@ import { prepararImagen } from '../../lib/imagen.js';
 import { Boton, Tarjeta, Encabezado, Consulta, Estado, Modal, Campo, Entrada, Selector, SelectorArchivo, Aviso, Fila, Vacio } from '../../components/ui.jsx';
 
 export default function RevisionMedica() {
-  const q = useDatos('/api/socio/revision-medica');
+  const q = useDatos('/api/mi/revision-medica');
   const [turno, setTurno] = useState(null);
   const [certificado, setCertificado] = useState(null);
   const [archivo, setArchivo] = useState([]);
-  const pedir = useAccion((d) => api.post('/api/socio/revision-medica/turno', d), { ok: 'Pedido de turno enviado. Te confirmamos el horario.', invalidar: ['/api/socio'], alTerminar: () => setTurno(null) });
-  const subir = useAccion(async (d) => api.post('/api/socio/revision-medica/certificado', formData(d, { certificado: await prepararImagen(archivo[0]) })), {
-    ok: 'Certificado enviado para validación del médico', invalidar: ['/api/socio'], alTerminar: () => { setCertificado(null); setArchivo([]); },
+  const pedir = useAccion((d) => api.post('/api/mi/revision-medica/turno', d), { ok: 'Pedido de turno enviado. Te confirmamos el horario.', invalidar: ['/api/mi'], alTerminar: () => setTurno(null) });
+  const subir = useAccion(async (d) => api.post('/api/mi/revision-medica/certificado', formData(d, { certificado: await prepararImagen(archivo[0]) })), {
+    ok: 'Certificado enviado para validación del médico', invalidar: ['/api/mi'], alTerminar: () => { setCertificado(null); setArchivo([]); },
   });
-  const consentir = useAccion((d) => api.post('/api/socio/privacidad/consentimientos', d), { ok: 'Consentimiento registrado', invalidar: ['/api/socio'] });
+  const consentir = useAccion((d) => api.post('/api/mi/privacidad/consentimientos', d), { ok: 'Consentimiento registrado', invalidar: ['/api/mi'] });
 
   return (
     <>

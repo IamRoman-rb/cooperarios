@@ -23,7 +23,7 @@ export default function Pendientes() {
                   { k: 'tipo', t: 'Revisión' },
                   { k: 'vence_en', t: 'Vence', r: (p) => fecha(p.vence_en) },
                   { k: 'situacion', t: 'Estado', r: (p) => <Estado valor={p.situacion} /> },
-                  { k: 'acc', t: '', derecha: true, r: (p) => <Boton chico variante="suave" onClick={() => navegar(`/medico/revision?persona=${p.persona_id}`)}>Revisar</Boton> },
+                  { k: 'acc', t: '', derecha: true, r: (p) => <Boton chico variante="suave" onClick={() => navegar(`/nueva-revision?persona=${p.persona_id}`)}>Revisar</Boton> },
                 ]} filas={g.personas} />
               </Tarjeta>
             ))}

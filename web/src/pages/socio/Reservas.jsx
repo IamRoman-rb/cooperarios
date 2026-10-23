@@ -10,17 +10,17 @@ const HORAS = Array.from({ length: 15 }, (_, i) => 8 + i); // 8 a 22 hs
 const iso = (f, h) => new Date(`${f}T${String(h).padStart(2, '0')}:00:00-03:00`).toISOString();
 
 export default function Reservas() {
-  const q = useDatos('/api/socio/reservas');
+  const q = useDatos('/api/mi/reservas');
   const [espacio, setEspacio] = useState(null);
   const [dia, setDia] = useState(hoy());
   const [turno, setTurno] = useState(null);
   const [cancelar, setCancelar] = useState(null);
   const espacioId = espacio ?? q.data?.espacios[0]?.id;
-  const disp = useDatos(espacioId ? `/api/socio/reservas/disponibilidad?espacio_id=${espacioId}&fecha=${dia}` : null);
-  const reservar = useAccion((h) => api.post('/api/socio/reservas', { espacio_id: espacioId, inicio: iso(dia, h), fin: iso(dia, h + 1) }), {
-    ok: 'Reserva confirmada', invalidar: ['/api/socio'], alTerminar: () => setTurno(null),
+  const disp = useDatos(espacioId ? `/api/mi/reservas/disponibilidad?espacio_id=${espacioId}&fecha=${dia}` : null);
+  const reservar = useAccion((h) => api.post('/api/mi/reservas', { espacio_id: espacioId, inicio: iso(dia, h), fin: iso(dia, h + 1) }), {
+    ok: 'Reserva confirmada', invalidar: ['/api/mi'], alTerminar: () => setTurno(null),
   });
-  const anular = useAccion((id) => api.post(`/api/socio/reservas/${id}/cancelar`), { ok: 'Reserva cancelada', invalidar: ['/api/socio'], alTerminar: () => setCancelar(null) });
+  const anular = useAccion((id) => api.post(`/api/mi/reservas/${id}/cancelar`), { ok: 'Reserva cancelada', invalidar: ['/api/mi'], alTerminar: () => setCancelar(null) });
 
   const ocupado = (h) => {
     const ini = iso(dia, h);

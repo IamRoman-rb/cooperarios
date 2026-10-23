@@ -3,8 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api.js';
 import { useSesion } from '../../lib/sesion.jsx';
+import { armarPortal, vistaDe, INICIO } from '../../rutas.js';
 import { useAviso } from '../../components/Avisos.jsx';
 import { Icono, Boton, Campo, Entrada, Aviso } from '../../components/ui.jsx';
+
+/** Vuelve a la pantalla pedida solo si el usuario que ingresó tiene acceso a ella. */
+function destino(volver, roles) {
+  if (!volver?.startsWith('/') || volver.startsWith('//')) return INICIO;
+  return vistaDe(armarPortal(roles.map((r) => r.codigo)), volver) ? volver : INICIO;
+}
 
 const DEMO = ['socio', 'profesor', 'admin', 'contabilidad', 'directiva', 'subcomision', 'mantenimiento', 'porteria', 'medico', 'auxiliar', 'sistemas'];
 
@@ -21,16 +28,16 @@ export default function Login() {
   const navegar = useNavigate();
   const qc = useQueryClient();
   const aviso = useAviso();
-  const { usuario, rolActivo } = useSesion();
+  const { usuario } = useSesion();
 
   useEffect(() => {
-    if (usuario && modo === 'ingresar') navegar(params.get('volver') ?? rolActivo?.inicio ?? '/', { replace: true });
-  }, [usuario, modo, navegar, params, rolActivo]);
+    if (usuario && modo === 'ingresar') navegar(destino(params.get('volver'), usuario.roles), { replace: true });
+  }, [usuario, modo, navegar, params]);
 
   const entrar = (u) => {
     qc.setQueryData(['sesion'], u);
     aviso.exito(`¡Hola, ${u.nombre}!`);
-    navegar(params.get('volver') ?? u.roles[0]?.inicio ?? '/', { replace: true });
+    navegar(destino(params.get('volver'), u.roles), { replace: true });
   };
 
   async function enviar(e) {

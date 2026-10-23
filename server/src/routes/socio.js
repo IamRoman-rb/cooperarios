@@ -183,7 +183,7 @@ function avisarListaEspera(grupoId) {
   const primero = db.prepare('SELECT * FROM lista_espera WHERE grupo_id = ? AND avisado_en IS NULL ORDER BY posicion LIMIT 1').get(grupoId);
   if (!primero) return;
   const u = db.prepare('SELECT id FROM usuarios WHERE persona_id = ?').pluck().get(primero.persona_id);
-  if (u) notificar({ usuarioId: u, tipo: 'lista_espera', titulo: 'Se liberó un lugar en un grupo de tu lista de espera', referencia: '/socio/actividades/explorar' });
+  if (u) notificar({ usuarioId: u, tipo: 'lista_espera', titulo: 'Se liberó un lugar en un grupo de tu lista de espera', referencia: '/mis-actividades/explorar' });
   db.prepare('UPDATE lista_espera SET avisado_en = ? WHERE id = ?').run(ahora(), primero.id);
 }
 
@@ -350,8 +350,8 @@ r.post('/pagos/transferencia', subida('comprobantes', { maxMb: 5, campos: 1 }).s
   if (datos.monto > total) throw invalido('El monto informado supera la deuda seleccionada');
   const id = getDb().prepare(`INSERT INTO transferencias_informadas (persona_id, cargo_ids, monto, medio, comprobante_archivo, referencia) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`)
     .get(personaId, JSON.stringify(datos.cargo_ids), datos.monto, datos.medio, rutaRelativa('comprobantes', req.file), datos.referencia ?? null).id;
-  notificar({ rol: 'admin', tipo: 'cobranza', titulo: 'Nueva transferencia informada para aprobar', referencia: '/admin/cobranzas' });
-  notificar({ rol: 'contabilidad', tipo: 'cobranza', titulo: 'Nueva transferencia informada para aprobar', referencia: '/contabilidad/conciliacion' });
+  notificar({ rol: 'admin', tipo: 'cobranza', titulo: 'Nueva transferencia informada para aprobar', referencia: '/cobranzas' });
+  notificar({ rol: 'contabilidad', tipo: 'cobranza', titulo: 'Nueva transferencia informada para aprobar', referencia: '/conciliacion' });
   res.status(201).json({ id, estado: 'pendiente' });
 });
 
@@ -386,7 +386,7 @@ r.post('/revision-medica/turno', (req, res) => {
   if (new Date(datos.inicio) < new Date()) throw invalido('Elegí una fecha futura');
   const id = getDb().prepare(`INSERT INTO turnos_revision (persona_id, tipo_revision_id, inicio, estado) VALUES (?, ?, ?, 'solicitado') RETURNING id`)
     .get(personaId, datos.tipo_revision_id, new Date(datos.inicio).toISOString()).id;
-  notificar({ rol: 'auxiliar', tipo: 'turno', titulo: 'Nuevo pedido de turno de revisión médica', referencia: '/revision/agenda' });
+  notificar({ rol: 'auxiliar', tipo: 'turno', titulo: 'Nuevo pedido de turno de revisión médica', referencia: '/agenda-medica' });
   res.status(201).json({ id });
 });
 
@@ -396,7 +396,7 @@ r.post('/revision-medica/certificado', subida('certificados', { maxMb: 6, campos
   if (!req.file) throw invalido('Adjuntá el certificado (PDF o imagen)');
   const id = getDb().prepare(`INSERT INTO revisiones_medicas (persona_id, tipo_revision_id, fecha, resultado, certificado_externo, cargado_por)
     VALUES (?, ?, ?, 'pendiente_validacion', ?, ?) RETURNING id`).get(personaId, datos.tipo_revision_id, local().fecha, rutaRelativa('certificados', req.file), req.usuario.id).id;
-  notificar({ rol: 'medico', tipo: 'revision_medica', titulo: 'Nuevo certificado externo para validar', referencia: '/medico/certificados' });
+  notificar({ rol: 'medico', tipo: 'revision_medica', titulo: 'Nuevo certificado externo para validar', referencia: '/certificados' });
   res.status(201).json({ id });
 });
 
@@ -451,7 +451,7 @@ r.post('/solicitudes', (req, res) => {
   }), req.body);
   const personaId = personaObjetivo(req, datos.persona_id);
   const id = getDb().prepare('INSERT INTO solicitudes (persona_id, tipo, datos_json) VALUES (?, ?, ?) RETURNING id').get(personaId, datos.tipo, JSON.stringify(datos.datos)).id;
-  notificar({ rol: 'admin', tipo: 'solicitud', titulo: `Nueva solicitud: ${datos.tipo.replace('_', ' ')}`, referencia: '/admin/solicitudes' });
+  notificar({ rol: 'admin', tipo: 'solicitud', titulo: `Nueva solicitud: ${datos.tipo.replace('_', ' ')}`, referencia: '/bandeja-de-solicitudes' });
   res.status(201).json({ id });
 });
 
@@ -506,7 +506,7 @@ r.get('/privacidad/mis-datos', (req, res) => {
 r.post('/privacidad/solicitud', (req, res) => {
   const datos = validar(z.object({ derecho: z.enum(['acceso', 'rectificacion', 'actualizacion', 'supresion']), detalle: z.string().min(5).max(1000) }), req.body);
   const id = getDb().prepare(`INSERT INTO solicitudes (persona_id, tipo, datos_json) VALUES (?, 'derechos_datos', ?) RETURNING id`).get(req.usuario.persona_id, JSON.stringify(datos)).id;
-  notificar({ rol: 'admin', tipo: 'privacidad', titulo: `Solicitud de ${datos.derecho} de datos personales`, referencia: '/admin/privacidad' });
+  notificar({ rol: 'admin', tipo: 'privacidad', titulo: `Solicitud de ${datos.derecho} de datos personales`, referencia: '/privacidad-y-datos' });
   // Plazos legales: acceso 10 días corridos (art. 14); rectificación y supresión 5 días hábiles (art. 16).
   res.status(201).json({ id, plazo: datos.derecho === 'acceso' ? '10 días corridos' : '5 días hábiles' });
 });

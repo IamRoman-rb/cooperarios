@@ -7,8 +7,8 @@ export default function NuevoTicket() {
   const navegar = useNavigate();
   return (
     <div className="max-w-2xl">
-      <Encabezado titulo="Nuevo ticket" subtitulo="Si el sector tiene responsable por defecto, se le asigna automáticamente." volver="/mantenimiento/tickets" />
-      <Tarjeta franja><FormularioTicket alCrear={(r) => navegar(`/mantenimiento/tickets/${r.id}`)} /></Tarjeta>
+      <Encabezado titulo="Nuevo ticket" subtitulo="Si el sector tiene responsable por defecto, se le asigna automáticamente." volver="/tickets" />
+      <Tarjeta franja><FormularioTicket alCrear={(r) => navegar(`/tickets/${r.id}`)} /></Tarjeta>
     </div>
   );
 }

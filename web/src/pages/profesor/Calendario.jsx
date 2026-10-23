@@ -6,12 +6,12 @@ import { Boton, Tarjeta, Encabezado, Consulta, Fila, Modal, Campo, Entrada, Sele
 
 /** Horarios, espacios asignados y reservas de cancha para clases. */
 export default function Calendario() {
-  const q = useDatos('/api/profesor/calendario');
+  const q = useDatos('/api/clases/calendario');
   const [reserva, setReserva] = useState(null);
   const reservar = useAccion(() => api.post('/api/espacios/reservas', {
     espacio_id: reserva.espacio_id, tipo: 'clase',
     inicio: new Date(`${reserva.dia}T${reserva.desde}:00-03:00`).toISOString(), fin: new Date(`${reserva.dia}T${reserva.hasta}:00-03:00`).toISOString(),
-  }), { ok: 'Reserva para clase registrada', invalidar: ['/api/profesor'], alTerminar: () => setReserva(null) });
+  }), { ok: 'Reserva para clase registrada', invalidar: ['/api/clases'], alTerminar: () => setReserva(null) });
   return (
     <Consulta q={q}>
       {(d) => (

@@ -149,7 +149,7 @@ r.put('/socios/:personaId', permiso('altas_bajas', 'gestionar'), (req, res) => {
   });
   auditar(req, 'modificar_socio', 'socios', s.id, { estado: s.estado, categoria_id: s.categoria_id, grupo_familiar_id: s.grupo_familiar_id }, datos);
   const u = usuarioDePersona(id);
-  if (u && datos.estado) notificar({ usuarioId: u, tipo: 'socio', titulo: `Tu condición de socio cambió a: ${datos.estado}`, referencia: '/socio/perfil' });
+  if (u && datos.estado) notificar({ usuarioId: u, tipo: 'socio', titulo: `Tu condición de socio cambió a: ${datos.estado}`, referencia: '/perfil' });
   res.json({ ok: true });
 });
 
@@ -199,7 +199,7 @@ r.post('/solicitudes/:id/resolver', permiso('altas_bajas', 'gestionar'), (req, r
   db.prepare('UPDATE solicitudes SET estado = ?, respuesta = ?, resuelta_por = ?, resuelta_en = ? WHERE id = ?')
     .run(datos.estado, datos.respuesta ?? null, req.usuario.id, datos.estado === 'en_proceso' ? null : ahora(), s.id);
   const u = s.persona_id ? usuarioDePersona(s.persona_id) : null;
-  if (u) notificar({ usuarioId: u, tipo: 'solicitud', titulo: `Tu solicitud de ${s.tipo.replace('_', ' ')} fue ${datos.estado.replace('_', ' ')}`, referencia: '/socio/solicitudes' });
+  if (u) notificar({ usuarioId: u, tipo: 'solicitud', titulo: `Tu solicitud de ${s.tipo.replace('_', ' ')} fue ${datos.estado.replace('_', ' ')}`, referencia: '/tramites' });
   auditar(req, 'resolver_solicitud', 'solicitudes', s.id, { estado: s.estado }, { estado: datos.estado });
   res.json({ ok: true, resultado });
 });

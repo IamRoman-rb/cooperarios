@@ -6,19 +6,19 @@ import { pesos, fecha, horarios, periodo } from '../../lib/formato.js';
 import { Icono, Boton, Tarjeta, Encabezado, Consulta, Estado, Vacio, Modal, Aviso, Dato } from '../../components/ui.jsx';
 
 export default function MisActividades() {
-  const q = useDatos('/api/socio/actividades');
+  const q = useDatos('/api/mi/actividades');
   const navegar = useNavigate();
   const [baja, setBaja] = useState(null);
-  const pedirBaja = useAccion((id) => api.post(`/api/socio/actividades/${id}/baja`), {
-    ok: (r) => `Baja registrada. Se aplica al ${fecha(r.hasta)}.`, invalidar: ['/api/socio'], alTerminar: () => setBaja(null),
+  const pedirBaja = useAccion((id) => api.post(`/api/mi/actividades/${id}/baja`), {
+    ok: (r) => `Baja registrada. Se aplica al ${fecha(r.hasta)}.`, invalidar: ['/api/mi'], alTerminar: () => setBaja(null),
   });
   return (
     <>
       <Encabezado titulo="Mis actividades" subtitulo="Días y horarios, monto del período, vencimiento y habilitación."
-        acciones={<Boton as="link" to="/socio/actividades/explorar" icono="add">Inscribirme en otra</Boton>} />
+        acciones={<Boton as="link" to="/mis-actividades/explorar" icono="add">Inscribirme en otra</Boton>} />
       <Consulta q={q}>
         {(lista) => lista.length === 0 ? (
-          <Vacio icono="sports" titulo="Todavía no estás inscripto/a" texto="Explorá las actividades con vacantes y precios." accion={<Boton as="link" to="/socio/actividades/explorar">Explorar</Boton>} />
+          <Vacio icono="sports" titulo="Todavía no estás inscripto/a" texto="Explorá las actividades con vacantes y precios." accion={<Boton as="link" to="/mis-actividades/explorar">Explorar</Boton>} />
         ) : (
           <div className="grid lg:grid-cols-2 gap-space-md">
             {lista.map((i) => (
@@ -47,7 +47,7 @@ export default function MisActividades() {
                       <Estado valor={i.estado_pago} />
                       {i.apto?.requiere && <Estado valor={i.apto.vigente ? 'apto' : i.apto.estado} texto={i.apto.vigente ? `Apto hasta ${fecha(i.apto.vence_en)}` : `Apto: ${i.apto.estado.replace('_', ' ')}`} />}
                     </div>
-                    {i.saldo > 0 && <Boton chico icono="payments" onClick={() => navegar('/socio/pagos')}>Pagar {pesos(i.saldo)}</Boton>}
+                    {i.saldo > 0 && <Boton chico icono="payments" onClick={() => navegar('/pagos')}>Pagar {pesos(i.saldo)}</Boton>}
                   </div>
                   {!i.habilitado && i.motivo && <Aviso tono="alerta">{i.motivo}</Aviso>}
                   {i.estado === 'baja_solicitada'

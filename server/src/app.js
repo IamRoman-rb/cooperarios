@@ -48,11 +48,11 @@ export function crearApp() {
 
   app.use('/api/auth', auth);
   app.use('/api/publico', publico);
-  app.use('/api/socio', socio);
+  app.use('/api/mi', socio);
   app.use('/api/padron', padron);
   app.use('/api/actividades', actividades);
   app.use('/api', acceso); // /api/acceso/* y /api/lector/*
-  app.use('/api/profesor', profesor);
+  app.use('/api/clases', profesor);
   app.use('/api/espacios', espacios);
   app.use('/api', cobranzas); // /api/cobranzas/* y /api/pagos/webhook/*
   app.use('/api/finanzas', finanzas);

@@ -9,7 +9,7 @@ import { SelectorFamilia } from '../../components/compartidos.jsx';
 /** Credencial dinámica: el QR se renueva cada minuto; una captura vieja no sirve. */
 export default function Credencial() {
   const [persona, setPersona] = useState(null);
-  const q = useDatos(`/api/socio/credencial${persona ? `?persona_id=${persona}` : ''}`, { refetchInterval: 55_000, staleTime: 0 });
+  const q = useDatos(`/api/mi/credencial${persona ? `?persona_id=${persona}` : ''}`, { refetchInterval: 55_000, staleTime: 0 });
   const [restante, setRestante] = useState(60);
   const aviso = useAviso();
   const expira = q.data?.qr?.expira_en;

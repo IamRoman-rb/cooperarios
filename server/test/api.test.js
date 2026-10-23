@@ -15,9 +15,9 @@ beforeAll(() => {
 
 const VISTAS = {
   publico: ['/api/publico/inicio', '/api/publico/actividades', '/api/publico/actividades/:actividad', '/api/publico/cuota-social', '/api/publico/contacto', '/api/publico/documentos'],
-  socio: ['/api/socio/inicio', '/api/socio/perfil', '/api/socio/credencial', '/api/socio/actividades', '/api/socio/explorar', '/api/socio/reservas', '/api/socio/cuenta',
-    '/api/socio/pagos', '/api/socio/revision-medica', '/api/socio/invitados', '/api/socio/novedades', '/api/socio/solicitudes', '/api/socio/privacidad', '/api/notificaciones', '/api/sectores'],
-  profesor: ['/api/profesor/inicio', '/api/profesor/grupos', '/api/profesor/calendario', '/api/profesor/comunicaciones', '/api/profesor/liquidacion', '/api/tickets?mios=reportados',
+  socio: ['/api/mi/inicio', '/api/mi/perfil', '/api/mi/credencial', '/api/mi/actividades', '/api/mi/explorar', '/api/mi/reservas', '/api/mi/cuenta',
+    '/api/mi/pagos', '/api/mi/revision-medica', '/api/mi/invitados', '/api/mi/novedades', '/api/mi/solicitudes', '/api/mi/privacidad', '/api/notificaciones', '/api/sectores'],
+  profesor: ['/api/clases/inicio', '/api/clases/grupos', '/api/clases/calendario', '/api/clases/comunicaciones', '/api/clases/liquidacion', '/api/tickets?mios=reportados',
     '/api/acceso/historial'],
   admin: ['/api/tablero', '/api/padron/socios', '/api/padron/socios/:persona', '/api/padron/solicitudes', '/api/actividades', '/api/actividades/aux/opciones', '/api/sectores', '/api/tickets',
     '/api/actividades/inscripciones/lista', '/api/espacios', '/api/espacios/calendario', '/api/cobranzas/resumen', '/api/cobranzas/morosidad', '/api/cobranzas/transferencias',
@@ -81,7 +81,7 @@ describe('mínimo privilegio', () => {
   });
   it('el profesor ve habilitación de alumnos sin montos', async () => {
     const c = await como(app, 'profesor');
-    const res = await c.get('/api/profesor/grupos');
+    const res = await c.get('/api/clases/grupos');
     const alumno = res.body[0].alumnos[0];
     expect(alumno).toHaveProperty('habilitado');
     expect(JSON.stringify(alumno)).not.toMatch(/importe|deuda|saldo/);

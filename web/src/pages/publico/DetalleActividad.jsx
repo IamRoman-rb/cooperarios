@@ -8,7 +8,7 @@ export default function DetalleActividad() {
   const { id } = useParams();
   const { usuario, tieneRol } = useSesion();
   const q = useDatos(`/api/publico/actividades/${id}`);
-  const destino = usuario && tieneRol('socio') ? '/socio/actividades/explorar' : '/login?volver=/socio/actividades/explorar';
+  const destino = usuario && tieneRol('socio') ? '/mis-actividades/explorar' : '/login?volver=/socio/actividades/explorar';
   return (
     <div className="max-w-contenido mx-auto px-gutter-sm lg:px-margin pt-space-md">
       <Consulta q={q}>

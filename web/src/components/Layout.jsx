@@ -1,8 +1,8 @@
 // Estructura de pantallas: sitio público (barra superior + pestañas inferiores en celular) y
-// portales por rol (barra lateral en escritorio; encabezado y pestañas inferiores en celular).
+// portal del usuario con las vistas de todos sus roles (barra lateral en escritorio; encabezado y pestañas inferiores en celular).
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { PUBLICO, ROLES_UI } from '../rutas.js';
+import { PUBLICO, INICIO, vistaDe } from '../rutas.js';
 import { useSesion } from '../lib/sesion.jsx';
 import { useDatos, useAccion } from '../lib/datos.js';
 import { api } from '../lib/api.js';
@@ -26,7 +26,7 @@ export function Marca({ claro, compacta }) {
 }
 
 export function LayoutPublico() {
-  const { usuario, rolActivo } = useSesion();
+  const { usuario } = useSesion();
   const tabs = PUBLICO.filter((p) => p.tab);
   return (
     <div className="min-h-dvh flex flex-col">
@@ -40,7 +40,7 @@ export function LayoutPublico() {
               </NavLink>
             ))}
           </nav>
-          <Link to={usuario ? rolActivo?.inicio ?? '/login' : '/login'} className="h-11 px-4 rounded-xl bg-primary-container text-on-primary font-label-lg text-label-lg flex items-center gap-1.5 hover:bg-primary transition-colors">
+          <Link to={usuario ? INICIO : '/login'} className="h-11 px-4 rounded-xl bg-primary-container text-on-primary font-label-lg text-label-lg flex items-center gap-1.5 hover:bg-primary transition-colors">
             <Icono n={usuario ? 'dashboard' : 'login'} tam={18} />
             <span>{usuario ? 'Mi portal' : 'Ingresar'}</span>
           </Link>
@@ -124,8 +124,8 @@ function Notificaciones() {
   );
 }
 
-function MenuUsuario({ rolUi }) {
-  const { usuario, roles, rolActivo, elegirRol, salir } = useSesion();
+function MenuUsuario() {
+  const { usuario, salir } = useSesion();
   const [abierto, setAbierto] = useState(false);
   const ref = useRef(null);
   const navegar = useNavigate();
@@ -138,10 +138,7 @@ function MenuUsuario({ rolUi }) {
     <div className="relative" ref={ref}>
       <button onClick={() => setAbierto((a) => !a)} className="flex items-center gap-2 pl-1 pr-2 h-11 rounded-xl hover:bg-surface-container" aria-label="Menú de usuario">
         <Avatar persona={usuario} tam={32} />
-        <span className="hidden lg:flex flex-col items-start leading-tight">
-          <span className="text-label-lg">{usuario.nombre}</span>
-          <span className="text-label-sm text-secondary uppercase">{rolUi.nombre}</span>
-        </span>
+        <span className="hidden lg:block text-label-lg">{usuario.nombre}</span>
         <Icono n="expand_more" className="hidden lg:block text-secondary" />
       </button>
       {abierto && (
@@ -150,17 +147,6 @@ function MenuUsuario({ rolUi }) {
             <p className="font-semibold">{usuario.nombre} {usuario.apellido}</p>
             <p className="text-body-sm text-secondary truncate">{usuario.email}</p>
           </div>
-          {roles.length > 1 && (
-            <div className="border-t border-surface-container mt-1 pt-1">
-              <p className="px-3 pt-2 pb-1 etiqueta">Cambiar de vista</p>
-              {roles.map((r) => (
-                <button key={`${r.codigo}-${r.actividad_id ?? ''}`} onClick={() => { elegirRol(r.codigo); setAbierto(false); navegar(r.inicio); }}
-                  className={cx('w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-body-md hover:bg-surface-container-low', r.codigo === rolActivo?.codigo && 'text-primary-container font-semibold')}>
-                  <Icono n={ROLES_UI[r.codigo]?.icono ?? 'person'} tam={18} /> {r.nombre}{r.actividad ? ` · ${r.actividad}` : ''}
-                </button>
-              ))}
-            </div>
-          )}
           <div className="border-t border-surface-container mt-1 pt-1">
             <Link to="/" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-container-low text-body-md" onClick={() => setAbierto(false)}><Icono n="public" tam={18} /> Sitio del club</Link>
             <button onClick={async () => { await salir(); navegar('/login'); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-critico-suave text-body-md text-primary-container">
@@ -173,28 +159,26 @@ function MenuUsuario({ rolUi }) {
   );
 }
 
-export function LayoutRol({ codigo }) {
-  const rolUi = ROLES_UI[codigo];
+export function LayoutPortal() {
   const { pathname } = useLocation();
   const [masAbierto, setMasAbierto] = useState(false);
-  const { rolActivo, elegirRol } = useSesion();
-  useEffect(() => { if (rolActivo?.codigo !== codigo) elegirRol(codigo); }, [codigo, rolActivo, elegirRol]);
+  const { portal } = useSesion();
   useEffect(() => { setMasAbierto(false); window.scrollTo(0, 0); }, [pathname]);
-  const visibles = rolUi.secciones.map((s) => ({ ...s, items: s.items.filter((i) => !i.oculto) }));
+  const visibles = portal.secciones;
   const todos = visibles.flatMap((s) => s.items);
-  const actual = todos.slice().sort((a, b) => b.ruta.length - a.ruta.length).find((i) => pathname.startsWith(`${rolUi.base}/${i.ruta}`));
+  const actual = vistaDe(portal, pathname);
   const tabs = todos.filter((i) => i.tab).slice(0, 4);
 
   return (
     <div className="min-h-dvh lg:pl-72">
       <aside className="hidden lg:flex fixed left-0 top-0 h-dvh w-72 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex-col no-imprimir">
         <div className="p-space-lg pb-space-sm border-b border-surface-container"><Marca /></div>
-        <nav className="flex-1 overflow-y-auto p-space-md space-y-space-md" aria-label={`Menú de ${rolUi.nombre}`}>
+        <nav className="flex-1 overflow-y-auto p-space-md space-y-space-md" aria-label="Menú del portal">
           {visibles.map((s) => (
             <div key={s.titulo} className="flex flex-col gap-0.5">
               <span className="px-2 pb-1 font-label-sm text-label-sm uppercase tracking-wider text-secondary">{s.titulo}</span>
               {s.items.map((i) => (
-                <NavLink key={i.ruta} to={`${rolUi.base}/${i.ruta}`} end
+                <NavLink key={i.ruta} to={i.ruta} end
                   className={({ isActive }) => cx('flex items-center gap-2.5 px-2.5 py-2 rounded-lg font-label-lg text-label-lg transition-colors', isActive ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface')}>
                   <Icono n={i.icono} tam={20} /> <span className="truncate">{i.titulo}</span>
                 </NavLink>
@@ -202,9 +186,6 @@ export function LayoutRol({ codigo }) {
             </div>
           ))}
         </nav>
-        <div className="p-space-md border-t border-surface-container text-body-sm text-secondary flex items-center gap-2">
-          <Icono n={rolUi.icono} tam={18} /> Vista de {rolUi.nombre}
-        </div>
       </aside>
 
       <header className="sticky top-0 z-30 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-seguro no-imprimir">
@@ -212,16 +193,13 @@ export function LayoutRol({ codigo }) {
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="lg:hidden"><Marca compacta /></span>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-headline-sm text-headline-sm truncate">{actual?.titulo ?? rolUi.nombre}</span>
-                <span className="hidden sm:inline px-1.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed text-[10px] font-bold uppercase tracking-wider">{rolUi.nombre}</span>
-              </div>
+              <p className="font-headline-sm text-headline-sm truncate">{actual?.titulo ?? 'Los Cooperarios'}</p>
               <p className="lg:hidden font-label-sm text-label-sm text-on-surface-variant truncate">CSD Los Cooperarios · Quilmes Oeste</p>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <Notificaciones />
-            <MenuUsuario rolUi={rolUi} />
+            <MenuUsuario />
           </div>
         </div>
       </header>
@@ -229,7 +207,7 @@ export function LayoutRol({ codigo }) {
       <main className="px-gutter-sm lg:px-margin py-space-lg pb-28 lg:pb-12 max-w-contenido mx-auto"><Outlet /></main>
 
       <BarraInferior
-        items={tabs.map((t) => ({ a: `${rolUi.base}/${t.ruta}`, titulo: t.titulo.split(' ')[0] === 'Mis' || t.titulo.length < 12 ? t.titulo : t.titulo.split(' ')[0], icono: t.icono }))}
+        items={tabs.map((t) => ({ a: t.ruta, titulo: t.titulo.split(' ')[0] === 'Mis' || t.titulo.length < 12 ? t.titulo : t.titulo.split(' ')[0], icono: t.icono }))}
         extra={todos.length > tabs.length && (
           <button onClick={() => setMasAbierto(true)} className="flex flex-col items-center justify-center min-w-[56px] flex-1 h-14 rounded-xl text-on-surface-variant">
             <Icono n="menu" tam={22} /><span className="font-label-sm text-[10px] mt-0.5">Más</span>
@@ -240,7 +218,7 @@ export function LayoutRol({ codigo }) {
         <div className="lg:hidden fixed inset-0 z-[80] bg-[rgba(31,41,55,0.6)] flex items-end" onClick={() => setMasAbierto(false)}>
           <div className="w-full bg-surface-container-lowest rounded-t-2xl max-h-[80dvh] overflow-y-auto p-space-md pb-seguro" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2">
-              <p className="font-headline-sm text-headline-sm">{rolUi.nombre}</p>
+              <p className="font-headline-sm text-headline-sm">Menú</p>
               <BotonIcono icono="close" etiqueta="Cerrar" onClick={() => setMasAbierto(false)} />
             </div>
             {visibles.map((s) => (
@@ -248,7 +226,7 @@ export function LayoutRol({ codigo }) {
                 <p className="etiqueta px-1 mb-1">{s.titulo}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {s.items.map((i) => (
-                    <NavLink key={i.ruta} to={`${rolUi.base}/${i.ruta}`} end className={({ isActive }) => cx('flex items-center gap-2 p-3 rounded-xl text-label-lg min-h-[52px]', isActive ? 'bg-primary-container text-on-primary' : 'bg-surface hover:bg-surface-container-low')}>
+                    <NavLink key={i.ruta} to={i.ruta} end className={({ isActive }) => cx('flex items-center gap-2 p-3 rounded-xl text-label-lg min-h-[52px]', isActive ? 'bg-primary-container text-on-primary' : 'bg-surface hover:bg-surface-container-low')}>
                       <Icono n={i.icono} tam={20} /> <span className="leading-tight">{i.titulo}</span>
                     </NavLink>
                   ))}

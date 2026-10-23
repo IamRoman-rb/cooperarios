@@ -134,7 +134,7 @@ r.post('/comunicaciones', (req, res) => {
   for (const p of personas) {
     const u = db.prepare('SELECT id FROM usuarios WHERE persona_id = ?').pluck().get(p)
       ?? db.prepare('SELECT u.id FROM tutores t JOIN usuarios u ON u.persona_id = t.tutor_persona_id WHERE t.menor_persona_id = ?').pluck().get(p);
-    if (u) st.run(u, 'comunicado', d.titulo, '/socio/novedades');
+    if (u) st.run(u, 'comunicado', d.titulo, '/novedades');
   }
   res.status(201).json({ id });
 });

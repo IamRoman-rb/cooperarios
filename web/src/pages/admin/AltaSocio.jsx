@@ -16,7 +16,7 @@ export default function AltaSocio() {
   const { register, handleSubmit, watch, formState: { errors } } = useForm({ defaultValues: { crear_grupo_familiar: false, llave: true, consentimiento: false, jubilado: false } });
   const nacimiento = watch('fecha_nacimiento');
   const anios = edad(nacimiento);
-  const alta = useAccion((d) => api.post('/api/padron/socios', d), { ok: (r) => `Socio N° ${r.nro_socio} dado de alta`, invalidar: ['/api/padron'], alTerminar: (r) => navegar(`/admin/socios/${r.persona_id}`) });
+  const alta = useAccion((d) => api.post('/api/padron/socios', d), { ok: (r) => `Socio N° ${r.nro_socio} dado de alta`, invalidar: ['/api/padron'], alTerminar: (r) => navegar(`/socios/${r.persona_id}`) });
 
   const enviar = (d) => alta.mutate({
     ...d, categoria_id: d.categoria_id || undefined, grupo_familiar_id: grupo?.id ?? null,
@@ -26,7 +26,7 @@ export default function AltaSocio() {
 
   return (
     <>
-      <Encabezado titulo="Alta de socio" subtitulo="Datos personales, categoría, grupo familiar y consentimiento informado." volver="/admin/socios" />
+      <Encabezado titulo="Alta de socio" subtitulo="Datos personales, categoría, grupo familiar y consentimiento informado." volver="/socios" />
       <form onSubmit={handleSubmit(enviar)} className="grid lg:grid-cols-3 gap-space-md">
         <Tarjeta className="lg:col-span-2" titulo="Datos personales" icono="person" franja>
           <div className="grid sm:grid-cols-2 gap-space-md">

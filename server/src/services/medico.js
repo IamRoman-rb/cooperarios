@@ -87,7 +87,7 @@ function avisarResultado(personaId, resultado, vence) {
     postergado: 'Revisión médica postergada. Pedí un nuevo turno.',
     rechazado: 'Tu certificado externo no fue validado. Revisá el motivo y volvé a cargarlo.',
   };
-  notificar({ usuarioId, tipo: 'revision_medica', titulo: textos[resultado], referencia: '/socio/revision-medica' });
+  notificar({ usuarioId, tipo: 'revision_medica', titulo: textos[resultado], referencia: '/mi-revision-medica' });
 }
 
 /** Aptos vencidos o por vencer en los próximos `dias`, agrupados por actividad. */

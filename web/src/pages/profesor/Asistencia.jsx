@@ -8,18 +8,18 @@ import { Boton, Tarjeta, Encabezado, Consulta, Selector, Entrada, Estado, Avatar
 /** Planilla de asistencia: lo fichado por QR se registra solo; las correcciones manuales piden justificación. */
 export default function Asistencia() {
   const [params] = useSearchParams();
-  const grupos = useDatos('/api/profesor/grupos');
+  const grupos = useDatos('/api/clases/grupos');
   const [grupo, setGrupo] = useState(params.get('grupo') ?? '');
   const [dia, setDia] = useState(hoy());
   const grupoId = grupo || grupos.data?.[0]?.id;
-  const q = useDatos(grupoId ? `/api/profesor/asistencia?grupo_id=${grupoId}&fecha=${dia}` : null);
+  const q = useDatos(grupoId ? `/api/clases/asistencia?grupo_id=${grupoId}&fecha=${dia}` : null);
   const [cambios, setCambios] = useState({});
   const [justificar, setJustificar] = useState(false);
   const [motivo, setMotivo] = useState('');
   useEffect(() => setCambios({}), [grupoId, dia]);
-  const guardar = useAccion(() => api.put('/api/profesor/asistencia', {
+  const guardar = useAccion(() => api.put('/api/clases/asistencia', {
     grupo_id: grupoId, fecha: dia, registros: Object.entries(cambios).map(([id, presente]) => ({ inscripcion_id: id, presente, justificacion: motivo })),
-  }), { ok: 'Asistencia corregida', invalidar: ['/api/profesor'], alTerminar: () => { setCambios({}); setJustificar(false); setMotivo(''); } });
+  }), { ok: 'Asistencia corregida', invalidar: ['/api/clases'], alTerminar: () => { setCambios({}); setJustificar(false); setMotivo(''); } });
 
   return (
     <>

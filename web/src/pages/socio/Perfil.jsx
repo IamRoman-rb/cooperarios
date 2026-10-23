@@ -45,10 +45,10 @@ export function Seguridad() {
 }
 
 export default function Perfil() {
-  const q = useDatos('/api/socio/perfil');
+  const q = useDatos('/api/mi/perfil');
   const [edicion, setEdicion] = useState(null);
-  const guardar = useAccion(() => api.put('/api/socio/perfil', edicion), { ok: 'Datos actualizados', invalidar: ['/api/socio'], alTerminar: () => setEdicion(null) });
-  const foto = useAccion(async (archivo) => api.post('/api/socio/perfil/foto', formData({}, { foto: await prepararImagen(archivo, { lado: 600 }) })), { ok: 'Foto actualizada', invalidar: ['/api/socio', 'sesion'] });
+  const guardar = useAccion(() => api.put('/api/mi/perfil', edicion), { ok: 'Datos actualizados', invalidar: ['/api/mi'], alTerminar: () => setEdicion(null) });
+  const foto = useAccion(async (archivo) => api.post('/api/mi/perfil/foto', formData({}, { foto: await prepararImagen(archivo, { lado: 600 }) })), { ok: 'Foto actualizada', invalidar: ['/api/mi', 'sesion'] });
   return (
     <>
       <Encabezado titulo="Perfil y grupo familiar" subtitulo="Tus datos de contacto y los integrantes de tu grupo." />

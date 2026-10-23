@@ -73,7 +73,7 @@ r.post('/comunicados', permiso('comunicados', 'gestionar', 'gestionar_ambito'), 
           : db.prepare(`SELECT DISTINCT i.persona_id FROM inscripciones i JOIN grupos g ON g.id = i.grupo_id WHERE g.actividad_id = ? AND i.estado != 'baja'`).pluck().all(a.id);
     const usuarios = new Set(personas.map((p) => usuarioDePersona(p) ?? db.prepare('SELECT u.id FROM tutores t JOIN usuarios u ON u.persona_id = t.tutor_persona_id WHERE t.menor_persona_id = ?').pluck().get(p)).filter(Boolean));
     const st = db.prepare('INSERT INTO notificaciones (usuario_id, tipo, titulo, referencia) VALUES (?, ?, ?, ?)');
-    for (const u of usuarios) st.run(u, 'comunicado', d.titulo, '/socio/novedades');
+    for (const u of usuarios) st.run(u, 'comunicado', d.titulo, '/novedades');
     return { id: nuevo, destinatarios: usuarios.size };
   });
   auditar(req, 'publicar_comunicado', 'comunicados', id.id, null, { titulo: d.titulo, audiencia: d.audiencia });
@@ -172,8 +172,8 @@ r.post('/pedidos-cambio', permiso('pedidos_cambio', 'solicitar', 'aprobar'), (re
   const origen = esDirectiva ? 'comision_directiva' : esDelegado ? 'representante_actividad' : 'administracion';
   const id = getDb().prepare('INSERT INTO pedidos_cambio (solicitante_id, origen, actividad_id, tipo, titulo, justificacion, prioridad) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id')
     .get(req.usuario.id, origen, d.actividad_id ?? null, d.tipo, d.titulo, d.justificacion, d.prioridad).id;
-  notificar({ rol: 'directiva', tipo: 'pedido_cambio', titulo: `Nuevo pedido de cambio: ${d.titulo}`, referencia: '/directiva/pedidos-cambio' });
-  notificar({ rol: 'sistemas', tipo: 'pedido_cambio', titulo: `Nuevo pedido para analizar: ${d.titulo}`, referencia: '/sistema/roles' });
+  notificar({ rol: 'directiva', tipo: 'pedido_cambio', titulo: `Nuevo pedido de cambio: ${d.titulo}`, referencia: '/pedidos-de-cambio' });
+  notificar({ rol: 'sistemas', tipo: 'pedido_cambio', titulo: `Nuevo pedido para analizar: ${d.titulo}`, referencia: '/roles-y-permisos' });
   res.status(201).json({ id });
 });
 
@@ -194,7 +194,7 @@ r.post('/pedidos-cambio/:id/estado', permiso('pedidos_cambio', 'aprobar', 'gesti
   if (pc.solicitante_id === req.usuario.id && decide) throw prohibido('Quien pide no resuelve su propio pedido');
   db.prepare('UPDATE pedidos_cambio SET estado = ?, motivo_resolucion = COALESCE(?, motivo_resolucion), prioridad = COALESCE(?, prioridad), resuelto_por = CASE WHEN ? THEN ? ELSE resuelto_por END WHERE id = ?')
     .run(d.estado, d.motivo ?? null, d.prioridad ?? null, decide ? 1 : 0, req.usuario.id, pc.id);
-  notificar({ usuarioId: pc.solicitante_id, tipo: 'pedido_cambio', titulo: `Tu pedido "${pc.titulo}" pasó a: ${d.estado.replace('_', ' ')}`, referencia: tieneRol(req.usuario, 'directiva') ? '/subcomision/pedidos-cambio' : '/directiva/pedidos-cambio' });
+  notificar({ usuarioId: pc.solicitante_id, tipo: 'pedido_cambio', titulo: `Tu pedido "${pc.titulo}" pasó a: ${d.estado.replace('_', ' ')}`, referencia: '/pedidos-de-cambio' });
   auditar(req, 'pedido_cambio', 'pedidos_cambio', pc.id, { estado: pc.estado }, d);
   res.json({ ok: true });
 });
@@ -227,7 +227,7 @@ r.post('/aprobaciones/habilitaciones/:id', permiso('habilitacion', 'aprobar'), (
   if (hm.solicitada_por === req.usuario.id) throw prohibido('Quien solicita no aprueba');
   db.prepare('UPDATE habilitaciones_manuales SET estado = ?, autorizada_por = ? WHERE id = ?').run(d.aprobar ? 'aprobada' : 'rechazada', req.usuario.id, hm.id);
   auditar(req, d.aprobar ? 'aprobar_habilitacion' : 'rechazar_habilitacion', 'habilitaciones_manuales', hm.id, { estado: 'pendiente' }, { estado: d.aprobar ? 'aprobada' : 'rechazada', motivo: d.motivo });
-  notificar({ usuarioId: hm.solicitada_por, tipo: 'aprobacion', titulo: `Excepción de habilitación ${d.aprobar ? 'aprobada' : 'rechazada'}`, referencia: '/admin/habilitacion' });
+  notificar({ usuarioId: hm.solicitada_por, tipo: 'aprobacion', titulo: `Excepción de habilitación ${d.aprobar ? 'aprobada' : 'rechazada'}`, referencia: '/habilitacion' });
   res.json({ ok: true });
 });
 
@@ -330,7 +330,7 @@ r.post('/privacidad/solicitudes/:id', permiso('privacidad', 'gestionar'), (req, 
   if (!s) throw noEncontrado('Solicitud');
   db.prepare('UPDATE solicitudes SET estado = ?, respuesta = ?, resuelta_por = ?, resuelta_en = ? WHERE id = ?').run(d.estado, d.respuesta, req.usuario.id, d.estado === 'en_proceso' ? null : ahora(), s.id);
   const u = s.persona_id ? usuarioDePersona(s.persona_id) : null;
-  if (u) notificar({ usuarioId: u, tipo: 'privacidad', titulo: `Tu solicitud sobre datos personales: ${d.estado.replace('_', ' ')}`, referencia: '/socio/privacidad' });
+  if (u) notificar({ usuarioId: u, tipo: 'privacidad', titulo: `Tu solicitud sobre datos personales: ${d.estado.replace('_', ' ')}`, referencia: '/mi-privacidad' });
   auditar(req, 'resolver_derechos_datos', 'solicitudes', s.id, { estado: s.estado }, d);
   res.json({ ok: true });
 });

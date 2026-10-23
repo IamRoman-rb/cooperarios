@@ -32,8 +32,8 @@ export default function AgendaMedica({ modo }) {
           <Grilla className="mb-space-md">
             <Kpi etiqueta="Turnos del día" valor={d.turnos.length} icono="event" />
             <Kpi etiqueta="Pedidos sin confirmar" valor={d.solicitados.length} icono="pending" tono="alerta" />
-            <Kpi etiqueta="Certificados por validar" valor={d.certificados_pendientes} icono="verified" tono="alerta" a={esMedico ? '/medico/certificados' : '/revision/certificados'} />
-            <Kpi etiqueta="Aptos por vencer (30 días)" valor={d.por_vencer} icono="event_upcoming" a={esMedico ? '/medico/pendientes' : '/revision/recordatorios'} />
+            <Kpi etiqueta="Certificados por validar" valor={d.certificados_pendientes} icono="verified" tono="alerta" a="/certificados" />
+            <Kpi etiqueta="Aptos por vencer (30 días)" valor={d.por_vencer} icono="event_upcoming" a={esMedico ? '/pendientes' : '/recordatorios'} />
           </Grilla>
           <div className="grid lg:grid-cols-3 gap-space-md">
             <Tarjeta className="lg:col-span-2" titulo="Turnos" icono="schedule" cuerpo="p-space-md space-y-2">
@@ -46,7 +46,7 @@ export default function AgendaMedica({ modo }) {
                   </div>
                   <Estado valor={t.estado} />
                   <div className="flex gap-1">
-                    {esMedico && ['confirmado', 'presente', 'solicitado'].includes(t.estado) && <Boton chico icono="stethoscope" onClick={() => navegar(`/medico/revision?persona=${t.persona_id}&turno=${t.id}&tipo=${t.tipo_revision_id}`)}>Atender</Boton>}
+                    {esMedico && ['confirmado', 'presente', 'solicitado'].includes(t.estado) && <Boton chico icono="stethoscope" onClick={() => navegar(`/nueva-revision?persona=${t.persona_id}&turno=${t.id}&tipo=${t.tipo_revision_id}`)}>Atender</Boton>}
                     {!esMedico && t.estado === 'confirmado' && <Boton chico variante="exito" icono="how_to_reg" onClick={() => estado.mutate({ id: t.id, estado: 'presente' })}>Presente</Boton>}
                     {!esMedico && ['confirmado', 'solicitado'].includes(t.estado) && <>
                       <Boton chico variante="suave" onClick={() => setReprogramar({ id: t.id, inicio: '' })}>Reprogramar</Boton>

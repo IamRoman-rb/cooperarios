@@ -9,7 +9,7 @@ export default function DetalleTicket() {
   const { usuario, puede } = useSesion();
   return (
     <div className="max-w-3xl">
-      <Encabezado titulo="Detalle del ticket" subtitulo="Marcar como realizado exige adjuntar fotos del trabajo terminado." volver="/mantenimiento/inicio" />
+      <Encabezado titulo="Detalle del ticket" subtitulo="Marcar como realizado exige adjuntar fotos del trabajo terminado." volver="/mis-tickets" />
       <Tarjeta><Detalle id={id} usuarioId={usuario.id} gestor={puede('tickets', 'gestionar')} /></Tarjeta>
     </div>
   );

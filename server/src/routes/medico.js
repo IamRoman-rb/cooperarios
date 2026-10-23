@@ -43,7 +43,7 @@ r.post('/turnos', permiso('turnos_medicos', 'gestionar'), (req, res) => {
   const id = getDb().prepare(`INSERT INTO turnos_revision (persona_id, tipo_revision_id, profesional_id, inicio, estado) VALUES (?, ?, ?, ?, 'confirmado') RETURNING id`)
     .get(d.persona_id, d.tipo_revision_id, prof, new Date(d.inicio).toISOString()).id;
   const u = usuarioDePersona(d.persona_id);
-  if (u) notificar({ usuarioId: u, tipo: 'turno', titulo: `Turno de revisión médica confirmado`, referencia: '/socio/revision-medica' });
+  if (u) notificar({ usuarioId: u, tipo: 'turno', titulo: `Turno de revisión médica confirmado`, referencia: '/mi-revision-medica' });
   res.status(201).json({ id });
 });
 
@@ -58,7 +58,7 @@ r.put('/turnos/:id', permiso('turnos_medicos', 'gestionar'), (req, res) => {
     db.prepare(`UPDATE turnos_revision SET estado = 'confirmado', inicio = ? WHERE id = ?`).run(new Date(d.inicio).toISOString(), t.id);
   } else db.prepare('UPDATE turnos_revision SET estado = ? WHERE id = ?').run(d.estado, t.id);
   const u = usuarioDePersona(t.persona_id);
-  if (u && ['confirmado', 'reprogramado', 'cancelado'].includes(d.estado)) notificar({ usuarioId: u, tipo: 'turno', titulo: `Tu turno de revisión fue ${d.estado}`, referencia: '/socio/revision-medica' });
+  if (u && ['confirmado', 'reprogramado', 'cancelado'].includes(d.estado)) notificar({ usuarioId: u, tipo: 'turno', titulo: `Tu turno de revisión fue ${d.estado}`, referencia: '/mi-revision-medica' });
   res.json({ ok: true });
 });
 
@@ -126,7 +126,7 @@ r.post('/certificados', permiso('resultados_medicos', 'solicitar', 'gestionar'),
   if (!req.file) throw invalido('Adjuntá el certificado escaneado');
   const id = getDb().prepare(`INSERT INTO revisiones_medicas (persona_id, tipo_revision_id, fecha, resultado, certificado_externo, cargado_por) VALUES (?, ?, ?, 'pendiente_validacion', ?, ?) RETURNING id`)
     .get(d.persona_id, d.tipo_revision_id, local().fecha, rutaRelativa('certificados', req.file), req.usuario.id).id;
-  notificar({ rol: 'medico', tipo: 'revision_medica', titulo: 'Certificado externo cargado para validar', referencia: '/medico/certificados' });
+  notificar({ rol: 'medico', tipo: 'revision_medica', titulo: 'Certificado externo cargado para validar', referencia: '/certificados' });
   res.status(201).json({ id });
 });
 
@@ -161,7 +161,7 @@ r.post('/recordatorios', permiso('turnos_medicos', 'gestionar'), (req, res) => {
   let enviados = 0;
   for (const id of d.persona_ids) {
     const u = usuarioDePersona(id) ?? getDb().prepare('SELECT u.id FROM tutores t JOIN usuarios u ON u.persona_id = t.tutor_persona_id WHERE t.menor_persona_id = ?').pluck().get(id);
-    if (u) { notificar({ usuarioId: u, tipo: 'revision_medica', titulo: d.mensaje, referencia: '/socio/revision-medica' }); enviados++; }
+    if (u) { notificar({ usuarioId: u, tipo: 'revision_medica', titulo: d.mensaje, referencia: '/mi-revision-medica' }); enviados++; }
   }
   res.json({ enviados });
 });

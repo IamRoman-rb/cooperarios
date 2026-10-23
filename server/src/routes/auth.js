@@ -8,14 +8,13 @@ import {
   COOKIE, ROLES_MFA, verificarCredenciales, crearSesion, opcionesCookie, cargarUsuario, cerrarSesion,
   requiereSesion, generarSecretoTotp, verificarTotp, hashPassword,
 } from '../lib/auth.js';
-import { ROLES } from '../lib/rbac.js';
 import { validar, HttpError } from '../lib/util.js';
 import { auditar } from '../lib/auditoria.js';
 
 const r = Router();
 const limite = rateLimit({ windowMs: 15 * 60000, limit: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiados intentos. Esperá unos minutos.' } });
 
-/** Datos de la sesión para el frontend: usuario, roles con su vista de inicio y módulos habilitados. */
+/** Datos de la sesión para el frontend: usuario, roles y módulos habilitados. */
 export function perfilSesion(usuario) {
   return {
     id: usuario.id,
@@ -25,7 +24,7 @@ export function perfilSesion(usuario) {
     foto: usuario.foto,
     persona_id: usuario.persona_id,
     mfa_habilitado: !!usuario.mfa_habilitado,
-    roles: usuario.roles.map((x) => ({ ...x, inicio: ROLES.find((rr) => rr.codigo === x.codigo)?.inicio })),
+    roles: usuario.roles,
     permisos: usuario.permisos,
   };
 }

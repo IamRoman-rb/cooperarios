@@ -4,7 +4,7 @@ import { Tarjeta, Encabezado, Consulta, Estado, Tabla, Kpi, Grilla, Aviso } from
 
 /** Clases dictadas, período liquidado y estado de pago. */
 export default function Honorarios() {
-  const q = useDatos('/api/profesor/liquidacion');
+  const q = useDatos('/api/clases/liquidacion');
   return (
     <Consulta q={q}>
       {(d) => (

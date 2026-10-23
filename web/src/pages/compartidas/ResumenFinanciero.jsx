@@ -8,9 +8,9 @@ export const ORIGENES = { cuota_social: 'Cuotas sociales', arancel: 'Aranceles',
 export const MEDIOS = { efectivo: 'Efectivo', transferencia: 'Transferencia', mercadopago: 'Mercado Pago', billetera: 'Otras billeteras' };
 
 export default function ResumenFinanciero() {
-  const { rolActivo } = useSesion();
+  const { tieneRol } = useSesion();
   // Los accesos directos llevan a las vistas de gestión solo para Contabilidad.
-  const enlace = (ruta) => (rolActivo?.codigo === 'contabilidad' ? `/contabilidad/${ruta}` : undefined);
+  const enlace = (ruta) => (tieneRol('contabilidad') ? `/${ruta}` : undefined);
   const q = useDatos('/api/finanzas/resumen');
   return (
     <Consulta q={q}>

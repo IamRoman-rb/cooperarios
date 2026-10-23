@@ -15,13 +15,13 @@ export default function Explorar() {
   const [abierta, setAbierta] = useState(null);
   const [eleccion, setEleccion] = useState(null);
   const params = new URLSearchParams({ ...(persona && { persona_id: persona }), ...(tipo && { tipo }), ...(texto && { q: texto }), ...(todas && { todas: 1 }) });
-  const q = useDatos(`/api/socio/explorar?${params}`);
+  const q = useDatos(`/api/mi/explorar?${params}`);
   const yo = q.data?.familia.find((f) => f.yo)?.id;
   const personaId = persona ?? yo;
 
   return (
     <>
-      <Encabezado titulo="Explorar e inscribirme" subtitulo={`Vacantes en tiempo real y el precio que te corresponde${q.data ? ` como ${q.data.condicion === 'socio' ? 'socio' : 'no socio'}` : ''}.`} volver="/socio/actividades" />
+      <Encabezado titulo="Explorar e inscribirme" subtitulo={`Vacantes en tiempo real y el precio que te corresponde${q.data ? ` como ${q.data.condicion === 'socio' ? 'socio' : 'no socio'}` : ''}.`} volver="/mis-actividades" />
       {q.data && <SelectorFamilia familia={q.data.familia} valor={personaId} onChange={setPersona} />}
       <div className="grid sm:grid-cols-[1fr_180px] gap-2 mb-2">
         <Buscador valor={texto} onChange={setTexto} placeholder="Buscar actividad" />
@@ -80,11 +80,11 @@ export default function Explorar() {
 function Confirmar({ eleccion, setEleccion, personaId }) {
   const navegar = useNavigate();
   const { actividad: a, grupo: g } = eleccion;
-  const cot = useDatos(`/api/socio/cotizar?grupo_id=${g.id}&frecuencia=${eleccion.frecuencia}&persona_id=${personaId}${eleccion.descuento ? `&descuento_id=${eleccion.descuento}` : ''}`);
-  const inscribir = useAccion((datos) => api.post('/api/socio/inscribirme', datos), {
+  const cot = useDatos(`/api/mi/cotizar?grupo_id=${g.id}&frecuencia=${eleccion.frecuencia}&persona_id=${personaId}${eleccion.descuento ? `&descuento_id=${eleccion.descuento}` : ''}`);
+  const inscribir = useAccion((datos) => api.post('/api/mi/inscribirme', datos), {
     ok: (r) => (r.lista_espera ? `Quedaste en la lista de espera (posición ${r.posicion}). Te avisamos si se libera un lugar.` : r.estado === 'pendiente_apto' ? 'Inscripción registrada: queda pendiente de apto médico.' : '¡Inscripción confirmada!'),
-    invalidar: ['/api/socio'],
-    alTerminar: (r) => { setEleccion(null); if (!r.lista_espera) navegar('/socio/actividades'); },
+    invalidar: ['/api/mi'],
+    alTerminar: (r) => { setEleccion(null); if (!r.lista_espera) navegar('/mis-actividades'); },
   });
   const c = cot.data;
   const sinVacantes = g.vacantes <= 0;

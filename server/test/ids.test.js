@@ -41,7 +41,7 @@ describe('base de datos', () => {
 describe('API', () => {
   it('rechaza ids con formato inválido en el cuerpo', async () => {
     const socio = await como(app, 'socio');
-    const res = await socio.post('/api/socio/inscribirme').send({ grupo_id: 1, frecuencia: 1 });
+    const res = await socio.post('/api/mi/inscribirme').send({ grupo_id: 1, frecuencia: 1 });
     expect(res.status).toBe(400);
     expect(JSON.stringify(res.body.detalle)).toMatch(/grupo_id/);
   });

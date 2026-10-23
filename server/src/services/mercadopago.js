@@ -11,7 +11,7 @@ const API = 'https://api.mercadopago.com';
 
 export async function crearPreferencia({ pagoOnlineId, items, payer }) {
   if (config.mercadoPago.simulado) {
-    return { preferencia_id: `SIM-${pagoOnlineId}-${crypto.randomBytes(4).toString('hex')}`, init_point: `/socio/pagos/simulado/${pagoOnlineId}` };
+    return { preferencia_id: `SIM-${pagoOnlineId}-${crypto.randomBytes(4).toString('hex')}`, init_point: `/pagos/simulado/${pagoOnlineId}` };
   }
   const r = await fetch(`${API}/checkout/preferences`, {
     method: 'POST',
@@ -68,7 +68,7 @@ export function acreditar({ pagoOnlineId, paymentId, estado, notificacionHash = 
     db.prepare(`UPDATE pagos_online SET estado = 'aprobado', pago_id = ?, payment_id = ?, comision = ?, notificacion_hash = ? WHERE id = ?`)
       .run(pagoId, paymentId, comision, notificacionHash, po.id);
     const usuarioId = usuarioDePersona(po.persona_id);
-    if (usuarioId) notificar({ usuarioId, tipo: 'pago', titulo: `Pago acreditado. Recibo ${numero}`, referencia: `/socio/cuenta` });
+    if (usuarioId) notificar({ usuarioId, tipo: 'pago', titulo: `Pago acreditado. Recibo ${numero}`, referencia: `/estado-de-cuenta` });
     return { ...po, estado: 'aprobado', pago_id: pagoId };
   });
 }

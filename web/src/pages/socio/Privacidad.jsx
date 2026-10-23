@@ -8,12 +8,12 @@ import { Boton, Tarjeta, Encabezado, Consulta, Estado, Campo, Selector, Area, Av
 const NOMBRES = { datos_personales: 'Tratamiento de datos personales', datos_salud: 'Datos de salud (revisión médica)', imagen: 'Uso de imagen', comunicaciones: 'Comunicaciones del club' };
 
 export default function Privacidad() {
-  const q = useDatos('/api/socio/privacidad');
+  const q = useDatos('/api/mi/privacidad');
   const aviso = useAviso();
   const [derecho, setDerecho] = useState('acceso');
   const [detalle, setDetalle] = useState('');
-  const cambiar = useAccion((d) => api.post('/api/socio/privacidad/consentimientos', d), { ok: 'Preferencia guardada', invalidar: ['/api/socio/privacidad'] });
-  const solicitar = useAccion(() => api.post('/api/socio/privacidad/solicitud', { derecho, detalle }), { ok: (r) => `Solicitud registrada. Plazo de respuesta: ${r.plazo}.`, invalidar: ['/api/socio/privacidad'], alTerminar: () => setDetalle('') });
+  const cambiar = useAccion((d) => api.post('/api/mi/privacidad/consentimientos', d), { ok: 'Preferencia guardada', invalidar: ['/api/mi/privacidad'] });
+  const solicitar = useAccion(() => api.post('/api/mi/privacidad/solicitud', { derecho, detalle }), { ok: (r) => `Solicitud registrada. Plazo de respuesta: ${r.plazo}.`, invalidar: ['/api/mi/privacidad'], alTerminar: () => setDetalle('') });
 
   return (
     <>
@@ -43,7 +43,7 @@ export default function Privacidad() {
               <div className="space-y-space-md">
                 <Tarjeta titulo="Descargar mis datos" icono="download" cuerpo="p-space-md space-y-2">
                   <p className="text-body-sm text-secondary">Obtené una copia de tus datos personales, actividades, pagos y accesos en formato abierto (JSON).</p>
-                  <Boton variante="suave" icono="download" onClick={() => descargar('/api/socio/privacidad/mis-datos', 'mis-datos-cooperarios.json').catch((e) => aviso.error(e.message))}>Descargar</Boton>
+                  <Boton variante="suave" icono="download" onClick={() => descargar('/api/mi/privacidad/mis-datos', 'mis-datos-cooperarios.json').catch((e) => aviso.error(e.message))}>Descargar</Boton>
                 </Tarjeta>
                 <Tarjeta titulo="Ejercer un derecho" icono="gavel" cuerpo="p-space-md space-y-space-md">
                   <Campo etiqueta="Derecho">

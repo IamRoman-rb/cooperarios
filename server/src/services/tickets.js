@@ -35,10 +35,10 @@ export function crearTicket({ titulo, descripcion, sectorId, categoria, priorida
   historial(id, null, 'nuevo', usuario.id);
   if (asignado) {
     historial(id, 'nuevo', 'asignado', null);
-    notificar({ usuarioId: asignado, tipo: 'ticket', titulo: `Nuevo ticket asignado: ${titulo}`, referencia: `/mantenimiento/tickets/${id}` });
+    notificar({ usuarioId: asignado, tipo: 'ticket', titulo: `Nuevo ticket asignado: ${titulo}`, referencia: `/tickets/${id}` });
   }
   for (const archivo of fotos) agregarFoto(id, 'problema', archivo, usuario.id);
-  if (prioridad === 'urgente') notificar({ rol: 'admin', tipo: 'ticket', titulo: `Ticket URGENTE: ${titulo}`, referencia: `/admin/tickets` });
+  if (prioridad === 'urgente') notificar({ rol: 'admin', tipo: 'ticket', titulo: `Ticket URGENTE: ${titulo}`, referencia: `/tickets` });
   return id;
 }
 
@@ -73,7 +73,7 @@ export function transicion(ticketId, accion, usuario, { asignadoA, comentario, c
       if (['resuelto', 'cerrado'].includes(t.estado)) throw invalido('El ticket ya fue resuelto');
       nuevo = 'asignado';
       sets.asignado_a = asignadoA;
-      notificar({ usuarioId: asignadoA, tipo: 'ticket', titulo: `Se te asignó el ticket ${t.codigo}`, referencia: `/mantenimiento/tickets/${t.id}` });
+      notificar({ usuarioId: asignadoA, tipo: 'ticket', titulo: `Se te asignó el ticket ${t.codigo}`, referencia: `/tickets/${t.id}` });
       break;
     case 'iniciar':
       if (!esAsignado && !gestiona) throw prohibido('Solo el responsable asignado puede iniciar el trabajo');
@@ -90,8 +90,8 @@ export function transicion(ticketId, accion, usuario, { asignadoA, comentario, c
       nuevo = 'resuelto';
       sets.resuelto_en = ahora();
       if (costo != null) sets.costo = costo;
-      notificar({ usuarioId: t.reportado_por, tipo: 'ticket', titulo: `Tu reporte ${t.codigo} fue resuelto`, referencia: `/mantenimiento/tickets/${t.id}` });
-      notificar({ rol: 'admin', tipo: 'ticket', titulo: `Ticket ${t.codigo} resuelto: verificar`, referencia: `/admin/tickets` });
+      notificar({ usuarioId: t.reportado_por, tipo: 'ticket', titulo: `Tu reporte ${t.codigo} fue resuelto`, referencia: `/tickets/${t.id}` });
+      notificar({ rol: 'admin', tipo: 'ticket', titulo: `Ticket ${t.codigo} resuelto: verificar`, referencia: `/tickets` });
       break;
     }
     case 'cerrar':
@@ -109,8 +109,8 @@ export function transicion(ticketId, accion, usuario, { asignadoA, comentario, c
       sets.resuelto_en = null;
       sets.verificado_por = null;
       sets.verificado_en = null;
-      if (t.asignado_a) notificar({ usuarioId: t.asignado_a, tipo: 'ticket', titulo: `Ticket ${t.codigo} reabierto`, referencia: `/mantenimiento/tickets/${t.id}` });
-      notificar({ rol: 'admin', tipo: 'ticket', titulo: `Ticket ${t.codigo} reabierto`, referencia: `/admin/tickets` });
+      if (t.asignado_a) notificar({ usuarioId: t.asignado_a, tipo: 'ticket', titulo: `Ticket ${t.codigo} reabierto`, referencia: `/tickets/${t.id}` });
+      notificar({ rol: 'admin', tipo: 'ticket', titulo: `Ticket ${t.codigo} reabierto`, referencia: `/tickets` });
       break;
     default:
       throw invalido('Acción desconocida');

@@ -71,7 +71,7 @@ export function avisosAptos() {
     const revs = db.prepare(`SELECT DISTINCT persona_id FROM revisiones_medicas WHERE vence_en = ? AND resultado IN ('apto','apto_restricciones')`).pluck().all(fecha);
     for (const personaId of revs) {
       const usuarioId = usuarioDePersona(personaId);
-      if (usuarioId) { notificar({ usuarioId, tipo: 'revision_medica', titulo: `Tu apto médico vence en ${dias} días`, referencia: '/socio/revision-medica' }); n++; }
+      if (usuarioId) { notificar({ usuarioId, tipo: 'revision_medica', titulo: `Tu apto médico vence en ${dias} días`, referencia: '/mi-revision-medica' }); n++; }
     }
   }
   return { avisos: n };
@@ -88,7 +88,7 @@ export function avisosMorosidad() {
     const usuarioId = usuarioDePersona(f.persona_id);
     if (!usuarioId) continue;
     const titulo = f.vencimiento > hoy ? `Tenés cargos que vencen el ${f.vencimiento}` : 'Tenés cargos vencidos. Regularizá en Mis pagos.';
-    notificar({ usuarioId, tipo: 'cobranza', titulo, referencia: '/socio/pagos' });
+    notificar({ usuarioId, tipo: 'cobranza', titulo, referencia: '/pagos' });
     n++;
   }
   return { avisos: n };
@@ -98,7 +98,7 @@ export function avisosMorosidad() {
 export function avisosTickets() {
   const vencidos = getDb().prepare(`SELECT COUNT(*) FROM tickets_mantenimiento WHERE estado NOT IN ('resuelto','cerrado') AND vence_en < ?`)
     .pluck().get(new Date().toISOString());
-  if (vencidos) notificar({ rol: 'admin', tipo: 'ticket', titulo: `${vencidos} tickets de mantenimiento vencidos`, referencia: '/admin/tickets' });
+  if (vencidos) notificar({ rol: 'admin', tipo: 'ticket', titulo: `${vencidos} tickets de mantenimiento vencidos`, referencia: '/tickets' });
   return { vencidos };
 }
 

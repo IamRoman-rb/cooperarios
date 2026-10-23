@@ -12,10 +12,10 @@ export default function Tablero() {
         <>
           <Encabezado etiqueta={periodo(d.periodo)} titulo="Tablero ejecutivo" subtitulo="Información en tiempo real para decidir." />
           <Grilla className="mb-space-md">
-            <Kpi etiqueta="Socios activos" valor={numero(d.socios.activos)} icono="groups" detalle={`+${d.socios.altas_mes} altas · −${d.socios.bajas_mes} bajas`} a="/directiva/padron" />
+            <Kpi etiqueta="Socios activos" valor={numero(d.socios.activos)} icono="groups" detalle={`+${d.socios.altas_mes} altas · −${d.socios.bajas_mes} bajas`} a="/socios" />
             <Kpi etiqueta="Morosidad" valor={`${d.morosidad.tasa}%`} icono="warning" tono="critico" detalle={`${d.morosidad.personas} socios · ${pesos(d.morosidad.monto)}`} />
-            <Kpi etiqueta="Resultado del mes" valor={pesos(d.resultado.at(-1).ingresos - d.resultado.at(-1).egresos)} icono="balance" tono={d.resultado.at(-1).ingresos >= d.resultado.at(-1).egresos ? 'exito' : 'critico'} a="/directiva/finanzas" />
-            <Kpi etiqueta="Pendientes de aprobar" valor={d.pendientes.aprobaciones} icono="approval" tono="alerta" a="/directiva/aprobaciones" />
+            <Kpi etiqueta="Resultado del mes" valor={pesos(d.resultado.at(-1).ingresos - d.resultado.at(-1).egresos)} icono="balance" tono={d.resultado.at(-1).ingresos >= d.resultado.at(-1).egresos ? 'exito' : 'critico'} a="/finanzas" />
+            <Kpi etiqueta="Pendientes de aprobar" valor={d.pendientes.aprobaciones} icono="approval" tono="alerta" a="/aprobaciones" />
           </Grilla>
           <div className="grid lg:grid-cols-3 gap-space-md">
             <Tarjeta className="lg:col-span-2" titulo="Ingresos y egresos" subtitulo="Últimos 6 meses" icono="bar_chart">
@@ -34,9 +34,9 @@ export default function Tablero() {
               <Barras moneda={false} alto={150} datos={d.asistencia.map((a) => ({ etiqueta: periodoCorto(a.periodo), presentes: a.presentes }))} series={[{ k: 'presentes', label: 'Ingresos', color: '#1f2937' }]} />
             </Tarjeta>
             <Tarjeta className="lg:col-span-3" titulo="Seguimiento" icono="checklist" cuerpo="p-space-md grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              <Fila icono="approval" tono="alerta" titulo={`${d.pendientes.aprobaciones} aprobaciones`} detalle="Gastos, excepciones, compras" a="/directiva/aprobaciones" />
-              <Fila icono="change_circle" titulo={`${d.pendientes.pedidos_cambio} pedidos de cambio`} detalle="Recibidos o en análisis" a="/directiva/pedidos-cambio" />
-              <Fila icono="gavel" titulo={`${d.pendientes.resoluciones} resoluciones abiertas`} detalle="Seguimiento de tareas" a="/directiva/actas" />
+              <Fila icono="approval" tono="alerta" titulo={`${d.pendientes.aprobaciones} aprobaciones`} detalle="Gastos, excepciones, compras" a="/aprobaciones" />
+              <Fila icono="change_circle" titulo={`${d.pendientes.pedidos_cambio} pedidos de cambio`} detalle="Recibidos o en análisis" a="/pedidos-de-cambio" />
+              <Fila icono="gavel" titulo={`${d.pendientes.resoluciones} resoluciones abiertas`} detalle="Seguimiento de tareas" a="/actas" />
               <Fila icono="build" tono={d.pendientes.tickets_vencidos ? 'critico' : 'exito'} titulo={`${d.pendientes.tickets_vencidos} tickets vencidos`} detalle="Mantenimiento" />
             </Tarjeta>
           </div>

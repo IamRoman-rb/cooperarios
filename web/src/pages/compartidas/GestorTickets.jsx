@@ -20,13 +20,13 @@ export default function GestorTickets({ modo }) {
   const params = new URLSearchParams(Object.entries(filtros).filter(([, v]) => v));
   const q = useDatos(`/api/tickets?${params}`);
   const sectores = useDatos('/api/sectores');
-  const abrir = (id) => (modo === 'mantenimiento' && window.innerWidth < 768 ? navegar(`/mantenimiento/tickets/${id}`) : setAbierto(id));
+  const abrir = (id) => (modo === 'mantenimiento' && window.innerWidth < 768 ? navegar(`/tickets/${id}`) : setAbierto(id));
   const set = (k) => (e) => setFiltros({ ...filtros, [k]: e.target.value });
 
   return (
     <>
       <Encabezado titulo={modo === 'admin' ? 'Tickets de mantenimiento' : 'Gestor de tickets'} subtitulo="Asignar, priorizar, verificar el cierre con fotos y reabrir."
-        acciones={<Boton icono="add" onClick={() => (modo === 'mantenimiento' ? navegar('/mantenimiento/tickets/nuevo') : setNuevo(true))}>Nuevo ticket</Boton>} />
+        acciones={<Boton icono="add" onClick={() => (modo === 'mantenimiento' ? navegar('/tickets/nuevo') : setNuevo(true))}>Nuevo ticket</Boton>} />
       <Consulta q={q}>
         {(d) => (
           <>

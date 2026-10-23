@@ -6,10 +6,10 @@ import { fechaLarga, relativa, capitalizar } from '../../lib/formato.js';
 import { Icono, Boton, Encabezado, Consulta, Pestanas, Vacio, cx } from '../../components/ui.jsx';
 
 export default function Novedades() {
-  const q = useDatos('/api/socio/novedades');
+  const q = useDatos('/api/mi/novedades');
   const [vista, setVista] = useState('comunicados');
   const navegar = useNavigate();
-  const leer = useAccion((id) => api.post('/api/notificaciones/leer', id ? { id } : {}), { invalidar: ['/api/notificaciones', '/api/socio'] });
+  const leer = useAccion((id) => api.post('/api/notificaciones/leer', id ? { id } : {}), { invalidar: ['/api/notificaciones', '/api/mi'] });
   return (
     <>
       <Encabezado titulo="Novedades y notificaciones" subtitulo="Comunicados del club, de tus actividades y avisos personales."

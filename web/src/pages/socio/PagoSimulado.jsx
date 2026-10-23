@@ -7,10 +7,10 @@ import { Icono, Boton, Aviso } from '../../components/ui.jsx';
 export default function PagoSimulado() {
   const { id } = useParams();
   const navegar = useNavigate();
-  const resolver = useAccion((resultado) => api.post(`/api/socio/pagos/online/${id}/simular`, { resultado }), {
+  const resolver = useAccion((resultado) => api.post(`/api/mi/pagos/online/${id}/simular`, { resultado }), {
     ok: (r) => (r.estado === 'aprobado' ? 'Pago aprobado y acreditado' : 'Pago rechazado'),
-    invalidar: ['/api/socio'],
-    alTerminar: (r) => navegar(r.estado === 'aprobado' ? '/socio/cuenta' : '/socio/pagos'),
+    invalidar: ['/api/mi'],
+    alTerminar: (r) => navegar(r.estado === 'aprobado' ? '/estado-de-cuenta' : '/pagos'),
   });
   return (
     <div className="max-w-md mx-auto tarjeta p-space-lg text-center space-y-space-md">

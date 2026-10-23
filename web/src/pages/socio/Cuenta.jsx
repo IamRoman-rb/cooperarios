@@ -8,10 +8,10 @@ export default function Cuenta() {
   const [persona, setPersona] = useState(null);
   const [vista, setVista] = useState('cargos');
   const [comprobante, setComprobante] = useState(null);
-  const q = useDatos(`/api/socio/cuenta${persona ? `?persona_id=${persona}` : ''}`);
+  const q = useDatos(`/api/mi/cuenta${persona ? `?persona_id=${persona}` : ''}`);
   return (
     <>
-      <Encabezado titulo="Estado de cuenta" subtitulo="Cuotas y aranceles, pagos registrados y comprobantes." acciones={<Boton as="link" to="/socio/pagos" icono="payments">Pagar</Boton>} />
+      <Encabezado titulo="Estado de cuenta" subtitulo="Cuotas y aranceles, pagos registrados y comprobantes." acciones={<Boton as="link" to="/pagos" icono="payments">Pagar</Boton>} />
       <Consulta q={q}>
         {(d) => {
           const porConcepto = Object.values(d.cargos.filter((c) => c.saldo > 0 && c.estado !== 'anulado').reduce((acc, c) => {

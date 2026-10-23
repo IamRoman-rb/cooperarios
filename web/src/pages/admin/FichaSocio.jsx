@@ -17,7 +17,7 @@ export default function FichaSocio() {
     <Consulta q={q}>
       {(d) => (
         <>
-          <Encabezado volver="/admin/socios" titulo={`${d.persona.apellido}, ${d.persona.nombre}`} subtitulo={d.socio ? `Socio N° ${d.socio.nro_socio} · ${d.socio.categoria} · alta ${fecha(d.socio.fecha_alta)}` : 'No socio'}
+          <Encabezado volver="/socios" titulo={`${d.persona.apellido}, ${d.persona.nombre}`} subtitulo={d.socio ? `Socio N° ${d.socio.nro_socio} · ${d.socio.categoria} · alta ${fecha(d.socio.fecha_alta)}` : 'No socio'}
             acciones={d.socio && <Boton variante="suave" icono="edit" onClick={() => setCambio({ estado: d.socio.estado, categoria_id: d.socio.categoria_id, motivo: '', email: d.persona.email ?? '', telefono: d.persona.telefono ?? '' })}>Modificar</Boton>} />
           <Pestanas valor={vista} onChange={setVista} opciones={[{ value: 'resumen', label: 'Resumen' }, { value: 'cuenta', label: 'Cuenta' }, { value: 'historial', label: 'Historial' }]} />
           {vista === 'resumen' && (
@@ -38,7 +38,7 @@ export default function FichaSocio() {
               <div className="space-y-space-md lg:col-span-2">
                 <Tarjeta titulo="Grupo familiar" icono="family_restroom" cuerpo="p-space-md grid sm:grid-cols-2 gap-2">
                   {d.familia.length === 0 ? <p className="text-body-sm text-secondary">Sin grupo familiar.</p> : d.familia.map((f) => (
-                    <Fila key={f.id} icono={f.titular ? 'star' : 'person'} titulo={`${f.nombre} ${f.apellido}`} detalle={`N° ${f.nro_socio}${f.titular ? ' · titular' : ''}`} a={`/admin/socios/${f.id}`} derecha={<Estado valor={f.estado} />} />
+                    <Fila key={f.id} icono={f.titular ? 'star' : 'person'} titulo={`${f.nombre} ${f.apellido}`} detalle={`N° ${f.nro_socio}${f.titular ? ' · titular' : ''}`} a={`/socios/${f.id}`} derecha={<Estado valor={f.estado} />} />
                   ))}
                 </Tarjeta>
                 <Tarjeta titulo="Actividades y habilitación" icono="sports" cuerpo="p-space-md">
@@ -56,7 +56,7 @@ export default function FichaSocio() {
             </div>
           )}
           {vista === 'cuenta' && d.cuenta && (
-            <Tarjeta titulo={`Deuda ${pesos(d.cuenta.resumen.deuda)} · vencido ${pesos(d.cuenta.resumen.vencido)}`} icono="receipt_long" accion={<Boton chico as="link" to={`/admin/cobranzas?persona=${id}`}>Cobrar</Boton>} cuerpo="p-space-md">
+            <Tarjeta titulo={`Deuda ${pesos(d.cuenta.resumen.deuda)} · vencido ${pesos(d.cuenta.resumen.vencido)}`} icono="receipt_long" accion={<Boton chico as="link" to={`/cobranzas?persona=${id}`}>Cobrar</Boton>} cuerpo="p-space-md">
               <Tabla compacta columnas={[
                 { k: 'descripcion', t: 'Concepto', r: (c) => `${c.descripcion}` },
                 { k: 'periodo', t: 'Período', r: (c) => periodo(c.periodo) },

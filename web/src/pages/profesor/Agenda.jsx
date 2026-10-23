@@ -4,7 +4,7 @@ import { fechaLarga, relativa } from '../../lib/formato.js';
 import { Icono, Boton, Tarjeta, Consulta, Kpi, Grilla, Vacio, Fila, Barra, Estado, cx } from '../../components/ui.jsx';
 
 export default function Agenda() {
-  const q = useDatos('/api/profesor/inicio', { refetchInterval: 60_000 });
+  const q = useDatos('/api/clases/inicio', { refetchInterval: 60_000 });
   return (
     <Consulta q={q}>
       {(d) => (
@@ -15,7 +15,7 @@ export default function Agenda() {
           </div>
           <Grilla cols="grid-cols-3">
             <Kpi etiqueta="Clases hoy" valor={d.clases.length} icono="today" />
-            <Kpi etiqueta="Mis grupos" valor={d.grupos} icono="groups" a="/profesor/grupos" />
+            <Kpi etiqueta="Mis grupos" valor={d.grupos} icono="groups" a="/mis-grupos" />
             <Kpi etiqueta="Alumnos" valor={d.alumnos_total} icono="person" />
           </Grilla>
           <Tarjeta titulo="Clases" icono="schedule" cuerpo="p-space-md space-y-3">
@@ -39,8 +39,8 @@ export default function Agenda() {
                   </div>
                 </div>
                 <div className="flex gap-2 mt-3">
-                  <Boton chico icono="qr_code_scanner" as="link" to="/profesor/fichaje">Fichar</Boton>
-                  <Boton chico variante="suave" icono="fact_check" as="link" to={`/profesor/asistencia?grupo=${c.grupo_id}`}>Planilla</Boton>
+                  <Boton chico icono="qr_code_scanner" as="link" to="/fichaje">Fichar</Boton>
+                  <Boton chico variante="suave" icono="fact_check" as="link" to={`/asistencia?grupo=${c.grupo_id}`}>Planilla</Boton>
                 </div>
               </div>
             ))}
@@ -48,7 +48,7 @@ export default function Agenda() {
           <Tarjeta titulo="Avisos" icono="notifications" cuerpo="p-space-md space-y-2">
             {d.avisos.length === 0 ? <p className="text-body-sm text-secondary">Sin avisos nuevos.</p> : d.avisos.map((a) => <Fila key={a.id} icono="notifications_active" titulo={a.titulo} detalle={relativa(a.creada_en)} a={a.referencia} />)}
           </Tarjeta>
-          <Link to="/profesor/incidencias" className="flex items-center gap-3 p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container">
+          <Link to="/reportar-problema" className="flex items-center gap-3 p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container">
             <Icono n="report" className="text-primary-container" /><span className="flex-1 font-label-lg text-label-lg">¿Algo roto en tu espacio? Reportá un problema</span><Icono n="chevron_right" />
           </Link>
         </div>

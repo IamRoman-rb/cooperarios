@@ -8,7 +8,7 @@ import { useAviso } from '../../components/Avisos.jsx';
 import { Icono, Boton, Tarjeta, Encabezado, Consulta, Estado, Vacio, Pestanas, Campo, Entrada, SelectorArchivo, Aviso, cx } from '../../components/ui.jsx';
 
 export default function Pagar() {
-  const q = useDatos('/api/socio/pagos');
+  const q = useDatos('/api/mi/pagos');
   const [params] = useSearchParams();
   const [elegidos, setElegidos] = useState(null);
   const [medio, setMedio] = useState('mercadopago');
@@ -36,13 +36,13 @@ export default function Pagar() {
     setElegidos(s);
   };
 
-  const mp = useAccion(() => api.post('/api/socio/pagos/mercadopago', { cargo_ids: [...seleccion] }), {
+  const mp = useAccion(() => api.post('/api/mi/pagos/mercadopago', { cargo_ids: [...seleccion] }), {
     alTerminar: (r) => (r.simulado ? navegar(r.init_point) : window.location.assign(r.init_point)),
   });
-  const transferencia = useAccion(async () => api.post('/api/socio/pagos/transferencia', formData(
+  const transferencia = useAccion(async () => api.post('/api/mi/pagos/transferencia', formData(
     { cargo_ids: [...seleccion], monto: total, medio: medio === 'billetera' ? 'billetera' : 'transferencia', referencia },
     { comprobante: archivo[0] ? await prepararImagen(archivo[0]) : null },
-  )), { ok: 'Comprobante enviado. Te avisamos cuando se acredite.', invalidar: ['/api/socio'], alTerminar: () => { setElegidos(new Set()); setArchivo([]); setReferencia(''); } });
+  )), { ok: 'Comprobante enviado. Te avisamos cuando se acredite.', invalidar: ['/api/mi'], alTerminar: () => { setElegidos(new Set()); setArchivo([]); setReferencia(''); } });
 
   const copiar = (t) => { navigator.clipboard.writeText(t); aviso.info('Copiado'); };
 

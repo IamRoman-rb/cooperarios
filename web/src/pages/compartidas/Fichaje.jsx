@@ -27,7 +27,7 @@ function Resultado({ r, onCerrar }) {
 
 export default function Fichaje({ modo }) {
   const esProfesor = modo === 'profesor';
-  const grupos = useDatos(esProfesor ? '/api/profesor/grupos' : null);
+  const grupos = useDatos(esProfesor ? '/api/clases/grupos' : null);
   const puntos = useDatos(!esProfesor ? '/api/acceso/puntos' : null);
   const [destino, setDestino] = useState('');
   const [resultado, setResultado] = useState(null);
@@ -43,7 +43,7 @@ export default function Fichaje({ modo }) {
   const destinoId = destino || (esProfesor ? grupoEnCurso?.id ?? grupos.data?.[0]?.id : puntos.data?.[0]?.id) || null;
 
   const fichar = useAccion((cuerpo) => api.post(esProfesor ? '/api/acceso/fichar-grupo' : '/api/acceso/fichar', esProfesor ? { ...cuerpo, grupo_id: destinoId } : { ...cuerpo, punto_acceso_id: destinoId }), {
-    invalidar: ['/api/profesor', '/api/acceso'],
+    invalidar: ['/api/clases', '/api/acceso'],
     alTerminar: (r) => {
       setResultado(r);
       setHistorial((h) => [{ ...r, en: new Date().toISOString() }, ...h].slice(0, 15));

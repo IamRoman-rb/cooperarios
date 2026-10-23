@@ -79,7 +79,7 @@ describe('lector QR con cerradura', () => {
 describe('inscripción y pagos', () => {
   it('inscribe con cargo y deja "pendiente de apto" si la actividad lo exige', async () => {
     const c = await como(app, 'socio');
-    const res = await c.post('/api/socio/inscribirme').send({ grupo_id: ids.grupos.basquet_fem, frecuencia: 2, persona_id: ids.pLucia });
+    const res = await c.post('/api/mi/inscribirme').send({ grupo_id: ids.grupos.basquet_fem, frecuencia: 2, persona_id: ids.pLucia });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expect(res.body.estado).toBe('pendiente_apto');
     expect(db.prepare(`SELECT COUNT(*) FROM cargos WHERE origen_tipo = 'inscripcion' AND origen_id = ?`).pluck().get(res.body.id)).toBe(1);
@@ -89,19 +89,19 @@ describe('inscripción y pagos', () => {
     const g = ids.grupos.tenis_menores;
     db.prepare(`INSERT INTO inscripciones (persona_id, grupo_id, frecuencia_semanal, desde) VALUES (?, ?, 1, '2026-03-01')`).run(ids.pLucia, g);
     db.prepare('UPDATE grupos SET cupo = (SELECT COUNT(*) FROM inscripciones WHERE grupo_id = ?) WHERE id = ?').run(g, g);
-    const res = await c.post('/api/socio/inscribirme').send({ grupo_id: g, frecuencia: 1, persona_id: ids.pTeo });
+    const res = await c.post('/api/mi/inscribirme').send({ grupo_id: g, frecuencia: 1, persona_id: ids.pTeo });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/lista de espera/);
-    const espera = await c.post('/api/socio/inscribirme').send({ grupo_id: g, frecuencia: 1, persona_id: ids.pTeo, lista_espera: true });
+    const espera = await c.post('/api/mi/inscribirme').send({ grupo_id: g, frecuencia: 1, persona_id: ids.pTeo, lista_espera: true });
     expect(espera.body.lista_espera).toBe(true);
   });
   it('pago simulado con Mercado Pago acredita e imputa los cargos', async () => {
     const c = await como(app, 'socio');
-    const pend = (await c.get('/api/socio/pagos')).body.pendientes.filter((p) => p.persona_id === ids.pLucia);
+    const pend = (await c.get('/api/mi/pagos')).body.pendientes.filter((p) => p.persona_id === ids.pLucia);
     const cargoIds = pend.slice(0, 2).map((p) => p.id);
-    const pref = await c.post('/api/socio/pagos/mercadopago').send({ cargo_ids: cargoIds });
+    const pref = await c.post('/api/mi/pagos/mercadopago').send({ cargo_ids: cargoIds });
     expect(pref.status).toBe(201);
-    const ok = await c.post(`/api/socio/pagos/online/${pref.body.id}/simular`).send({});
+    const ok = await c.post(`/api/mi/pagos/online/${pref.body.id}/simular`).send({});
     expect(ok.body.estado).toBe('aprobado');
     for (const id of cargoIds) expect(db.prepare('SELECT estado FROM cargos WHERE id = ?').pluck().get(id)).toBe('pagado');
   });

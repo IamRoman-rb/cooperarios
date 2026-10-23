@@ -24,7 +24,7 @@ export default function NuevaRevision() {
     persona_id: personaId, tipo_revision_id: tipo.id, resultado: form.resultado, restricciones: form.restricciones || null,
     vence_en: ['apto', 'apto_restricciones'].includes(form.resultado) ? form.vence_en || venceSugerido : null,
     turno_id: params.get('turno'), reemplaza_id: form.reemplaza_id || null,
-  }), { ok: 'Revisión registrada y firmada', invalidar: ['/api/medico'], alTerminar: () => navegar('/medico/inicio') });
+  }), { ok: 'Revisión registrada y firmada', invalidar: ['/api/medico'], alTerminar: () => navegar('/agenda-medica') });
 
   return (
     <>

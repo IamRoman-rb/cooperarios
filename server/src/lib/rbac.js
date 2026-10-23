@@ -4,16 +4,16 @@
 import { prohibido } from './util.js';
 
 export const ROLES = [
-  { codigo: 'socio', nombre: 'Socio', inicio: '/socio/inicio' },
-  { codigo: 'profesor', nombre: 'Profesor', inicio: '/profesor/inicio' },
-  { codigo: 'admin', nombre: 'Administración', inicio: '/admin/inicio' },
-  { codigo: 'contabilidad', nombre: 'Contabilidad', inicio: '/contabilidad/inicio' },
-  { codigo: 'directiva', nombre: 'Comisión Directiva', inicio: '/directiva/tablero' },
-  { codigo: 'subcomision', nombre: 'Delegado de subcomisión', inicio: '/subcomision/inicio' },
-  { codigo: 'mantenimiento', nombre: 'Servicio y mantenimiento', inicio: '/mantenimiento/inicio' },
-  { codigo: 'medico', nombre: 'Médico/a revisor/a', inicio: '/medico/inicio' },
-  { codigo: 'auxiliar', nombre: 'Auxiliar de revisión médica', inicio: '/revision/agenda' },
-  { codigo: 'sistemas', nombre: 'Sistemas', inicio: '/sistema/salud' },
+  { codigo: 'socio', nombre: 'Socio' },
+  { codigo: 'profesor', nombre: 'Profesor' },
+  { codigo: 'admin', nombre: 'Administración' },
+  { codigo: 'contabilidad', nombre: 'Contabilidad' },
+  { codigo: 'directiva', nombre: 'Comisión Directiva' },
+  { codigo: 'subcomision', nombre: 'Delegado de subcomisión' },
+  { codigo: 'mantenimiento', nombre: 'Servicio y mantenimiento' },
+  { codigo: 'medico', nombre: 'Médico/a revisor/a' },
+  { codigo: 'auxiliar', nombre: 'Auxiliar de revisión médica' },
+  { codigo: 'sistemas', nombre: 'Sistemas' },
 ];
 
 const ORDEN = ROLES.map((r) => r.codigo);
