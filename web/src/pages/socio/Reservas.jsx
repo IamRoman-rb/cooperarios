@@ -41,17 +41,17 @@ export default function Reservas() {
         return (
           <>
             <Encabezado titulo="Reservas de canchas y espacios" subtitulo="Elegí el espacio, el día y el horario libre." />
-            <div className="flex gap-2 overflow-x-auto sin-scroll mb-space-md">
+            <div className="flex flex-wrap gap-2 mb-space-md">
               {d.espacios.map((x) => (
-                <button key={x.id} onClick={() => setEspacio(x.id)} className={cx('h-10 px-4 rounded-full whitespace-nowrap text-label-lg border', x.id === espacioId ? 'bg-primary-container text-on-primary border-primary-container' : 'bg-surface-container-lowest border-surface-container')}>{x.nombre}</button>
+                <button key={x.id} onClick={() => setEspacio(x.id)} className={cx('h-10 px-4 max-w-full truncate rounded-full whitespace-nowrap text-label-lg border', x.id === espacioId ? 'bg-primary-container text-on-primary border-primary-container' : 'bg-surface-container-lowest border-surface-container')}>{x.nombre}</button>
               ))}
             </div>
             {e && (
               <div className="grid lg:grid-cols-3 gap-space-md">
                 <Tarjeta className="lg:col-span-2" titulo={fechaLarga(dia)} icono="calendar_month" subtitulo={e.tarifa_hora ? `Alquiler ${pesos(e.tarifa_hora)} por hora` : 'Sin cargo para socios'}>
-                  <div className="flex gap-1.5 overflow-x-auto sin-scroll pb-2 mb-3">
+                  <div className="grid grid-cols-7 gap-1.5 mb-3">
                     {dias.map((f) => (
-                      <button key={f} onClick={() => setDia(f)} className={cx('w-14 shrink-0 py-2 rounded-xl flex flex-col items-center', f === dia ? 'bg-graphite text-white' : 'bg-surface hover:bg-surface-container-low')}>
+                      <button key={f} onClick={() => setDia(f)} className={cx('py-2 rounded-xl flex flex-col items-center', f === dia ? 'bg-graphite text-white' : 'bg-surface hover:bg-surface-container-low')}>
                         <span className="text-label-sm uppercase">{DIAS_CORTOS[new Date(`${f}T12:00:00-03:00`).getDay()]}</span>
                         <span className="font-bold text-body-lg">{f.slice(8)}</span>
                       </button>

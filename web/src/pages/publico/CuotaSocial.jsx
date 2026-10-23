@@ -97,7 +97,7 @@ export default function CuotaSocial() {
                         <Entrada placeholder="Apellido" {...register(`familiares.${i}.apellido`)} />
                         <Entrada placeholder="DNI" inputMode="numeric" {...register(`familiares.${i}.dni`)} />
                         <Entrada type="date" {...register(`familiares.${i}.fecha_nacimiento`)} aria-label="Fecha de nacimiento" />
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Entrada placeholder="Parentesco" {...register(`familiares.${i}.parentesco`)} />
                           <Boton variante="fantasma" icono="delete" aria-label="Quitar" onClick={() => familiares.remove(i)} />
                         </div>

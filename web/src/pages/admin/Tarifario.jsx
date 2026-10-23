@@ -24,7 +24,7 @@ export default function Tarifario() {
         {(d) => (
           <>
             {vista === 'aranceles' && (
-              <Tarjeta cuerpo="p-space-md" accion={<div className="flex gap-2"><Selector value={actividad} onChange={(e) => setActividad(e.target.value)} vacio="Todas" opciones={(act.data ?? []).map((a) => ({ value: a.id, label: a.nombre }))} className="w-56" /><Boton icono="add" onClick={() => setArancel({ actividad_id: actividad || act.data?.[0]?.id, frecuencia: 1, descripcion: '', valor_socio: '', valor_no_socio: '', vigente_desde: hoy(), vigente_hasta: '' })}>Nuevo valor</Boton></div>} titulo="Aranceles por frecuencia">
+              <Tarjeta cuerpo="p-space-md" accion={<div className="flex flex-wrap gap-2"><Selector value={actividad} onChange={(e) => setActividad(e.target.value)} vacio="Todas" opciones={(act.data ?? []).map((a) => ({ value: a.id, label: a.nombre }))} className="w-full sm:w-56" /><Boton icono="add" onClick={() => setArancel({ actividad_id: actividad || act.data?.[0]?.id, frecuencia: 1, descripcion: '', valor_socio: '', valor_no_socio: '', vigente_desde: hoy(), vigente_hasta: '' })}>Nuevo valor</Boton></div>} titulo="Aranceles por frecuencia">
                 <Tabla compacta columnas={[
                   { k: 'actividad', t: 'Actividad' },
                   { k: 'descripcion', t: 'Frecuencia', r: (a) => a.descripcion ?? `${a.frecuencia}x semana` },

@@ -53,7 +53,7 @@ export function Tarjeta({ titulo, subtitulo, icono, accion, children, className 
     <section className={cx('tarjeta overflow-hidden', className)}>
       {franja && <div className="h-1.5 bg-primary-container" />}
       {(titulo || accion) && (
-        <header className="flex items-center justify-between gap-3 px-space-md pt-space-md">
+        <header className="flex flex-wrap items-center justify-between gap-3 px-space-md pt-space-md">
           <div className="flex items-center gap-2 min-w-0">
             {icono && <Icono n={icono} className="text-primary-container" />}
             <div className="min-w-0">
@@ -100,9 +100,9 @@ export function Estado({ valor, texto, tono, icono }) {
   const color = { exito: 'bg-exito-suave text-exito', alerta: 'bg-alerta-suave text-alerta', critico: 'bg-critico-suave text-critico', neutro: 'bg-surface-container text-secondary', info: 'bg-secondary-container text-on-secondary-fixed-variant' }[t];
   const etiqueta = texto ?? ETIQUETAS[valor] ?? (valor ? valor.charAt(0).toUpperCase() + valor.slice(1).replace(/_/g, ' ') : '');
   return (
-    <span className={cx('inline-flex items-center gap-1 h-6 px-2.5 rounded-full font-label-sm text-label-sm uppercase whitespace-nowrap', color)}>
+    <span title={etiqueta} className={cx('inline-flex items-center gap-1 h-6 px-2.5 max-w-full rounded-full font-label-sm text-label-sm uppercase whitespace-nowrap', color)}>
       {icono && <Icono n={icono} tam={14} />}
-      {etiqueta}
+      <span className="truncate">{etiqueta}</span>
     </span>
   );
 }
@@ -111,15 +111,15 @@ export function Kpi({ etiqueta, valor, icono, detalle, tono = 'normal', a }) {
   const contenido = (
     <div className={cx('tarjeta p-space-md flex flex-col justify-between gap-2 h-full', a && 'hover:shadow-n2 transition-shadow')}>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-label-sm text-label-sm uppercase text-on-surface-variant">{etiqueta}</span>
+        <span className="min-w-0 font-label-sm text-label-sm uppercase text-on-surface-variant">{etiqueta}</span>
         {icono && (
-          <span className={cx('w-8 h-8 rounded-lg flex items-center justify-center', tono === 'critico' ? 'bg-critico-suave text-critico' : tono === 'exito' ? 'bg-exito-suave text-exito' : tono === 'alerta' ? 'bg-alerta-suave text-alerta' : 'bg-surface-container text-primary-container')}>
+          <span className={cx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', tono === 'critico' ? 'bg-critico-suave text-critico' : tono === 'exito' ? 'bg-exito-suave text-exito' : tono === 'alerta' ? 'bg-alerta-suave text-alerta' : 'bg-surface-container text-primary-container')}>
             <Icono n={icono} tam={18} />
           </span>
         )}
       </div>
       <div>
-        <p className="text-headline-lg-mobile font-extrabold tracking-tight text-on-surface">{valor}</p>
+        <p className="text-headline-md sm:text-headline-lg-mobile font-extrabold tracking-tight text-on-surface [overflow-wrap:anywhere]">{valor}</p>
         {detalle && <p className="text-body-sm text-secondary mt-0.5">{detalle}</p>}
       </div>
     </div>
@@ -246,7 +246,7 @@ export function Modal({ abierto, titulo, onCerrar, children, pie, ancho = 'max-w
           <BotonIcono icono="close" etiqueta="Cerrar" onClick={onCerrar} />
         </header>
         <div className="px-space-lg pb-space-lg overflow-y-auto">{children}</div>
-        {pie && <footer className="px-space-lg py-space-md border-t border-surface-container flex justify-end gap-2 pb-seguro">{pie}</footer>}
+        {pie && <footer className="px-space-lg py-space-md border-t border-surface-container flex flex-wrap justify-end gap-2 pb-seguro [&>*]:flex-1 sm:[&>*]:flex-none">{pie}</footer>}
       </div>
     </div>
   );
@@ -266,7 +266,7 @@ export function DialogoMotivo({ abierto, titulo, etiqueta = 'Motivo', onCerrar, 
 
 export function Pestanas({ opciones, valor, onChange }) {
   return (
-    <div className="flex gap-1 p-1 bg-surface-container-low rounded-xl overflow-x-auto sin-scroll mb-space-md" role="tablist">
+    <div className="flex flex-wrap gap-1 p-1 bg-surface-container-low rounded-xl mb-space-md" role="tablist">
       {opciones.map((o) => {
         const v = o.value ?? o;
         const activo = v === valor;

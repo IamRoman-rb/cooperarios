@@ -21,7 +21,7 @@ export default function Tablero() {
           <h1 className="text-headline-md">¡Buen día, {usuario.nombre}!</h1>
           <p className="text-body-sm text-secondary capitalize">{fechaLarga(hoy())} · Administración</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Boton as="link" to="/socios/nuevo" icono="person_add" variante="suave">Alta de socio</Boton>
           <Boton as="link" to="/cobranzas" icono="point_of_sale">Cobrar</Boton>
         </div>

@@ -4,8 +4,10 @@
 
 @layer base {
   html { -webkit-tap-highlight-color: transparent; }
-  body { min-height: 100dvh; overscroll-behavior-y: none; font-family: Inter, system-ui, sans-serif; }
+  body { min-height: 100dvh; overscroll-behavior-y: none; font-family: Inter, system-ui, sans-serif; overflow-wrap: break-word; }
   :focus-visible { outline: 2px solid #b91c1c; outline-offset: 2px; }
+  /* Un hijo de grilla con texto largo o sin cortes no debe ensanchar la columna más allá de la pantalla. */
+  .grid > * { min-width: 0; }
 }
 
 @layer components {
@@ -25,8 +27,6 @@
   .pb-seguro { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .pt-seguro { padding-top: env(safe-area-inset-top, 0px); }
   .tabla-zebra tbody tr:nth-child(even) { @apply bg-surface; }
-  .sin-scroll::-webkit-scrollbar { display: none; }
-  .sin-scroll { scrollbar-width: none; }
 }
 
 @media print {

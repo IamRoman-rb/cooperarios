@@ -43,7 +43,7 @@ export function Transferencias() {
   const revisar = useAccion(({ id, ...d }) => api.post(`/api/cobranzas/transferencias/${id}/revisar`, d), { ok: (x) => (x.recibo ? `Acreditada. Recibo ${x.recibo}` : 'Transferencia rechazada'), invalidar: ['/api/cobranzas', '/api/finanzas'], alTerminar: () => setRechazo(null) });
   return (
     <>
-      <div className="flex gap-2 mb-space-md">{['pendiente', 'aprobada', 'rechazada', 'todas'].map((e) => <Boton key={e} chico variante={estado === e ? 'primario' : 'suave'} onClick={() => setEstado(e)}>{capitalizar(e)}</Boton>)}</div>
+      <div className="flex flex-wrap gap-2 mb-space-md">{['pendiente', 'aprobada', 'rechazada', 'todas'].map((e) => <Boton key={e} chico variante={estado === e ? 'primario' : 'suave'} onClick={() => setEstado(e)}>{capitalizar(e)}</Boton>)}</div>
       <Consulta q={q}>
         {(lista) => lista.length === 0 ? <Vacio icono="task_alt" titulo="No hay transferencias en este estado" /> : (
           <div className="grid lg:grid-cols-2 gap-3">

@@ -42,8 +42,8 @@ export default function MisActividades() {
                     <Dato etiqueta={`Monto ${periodo(i.periodo)}`} valor={pesos(i.monto)} />
                     <Dato etiqueta="Fecha límite" valor={fecha(i.fecha_limite)} />
                   </div>
-                  <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-surface">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-surface">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Estado valor={i.estado_pago} />
                       {i.apto?.requiere && <Estado valor={i.apto.vigente ? 'apto' : i.apto.estado} texto={i.apto.vigente ? `Apto hasta ${fecha(i.apto.vence_en)}` : `Apto: ${i.apto.estado.replace('_', ' ')}`} />}
                     </div>

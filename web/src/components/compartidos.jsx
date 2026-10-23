@@ -93,7 +93,7 @@ export function Comprobante({ id, url, onCerrar }) {
 export function SelectorFamilia({ familia = [], valor, onChange }) {
   if (familia.length <= 1) return null;
   return (
-    <div className="flex gap-2 overflow-x-auto sin-scroll pb-1 mb-space-md" role="radiogroup" aria-label="Integrante">
+    <div className="flex flex-wrap gap-2 mb-space-md" role="radiogroup" aria-label="Integrante">
       {familia.map((p) => (
         <button key={p.id} role="radio" aria-checked={valor === p.id} onClick={() => onChange(p.id)}
           className={cx('flex items-center gap-2 h-10 pl-1.5 pr-3 rounded-full border transition-all whitespace-nowrap', valor === p.id ? 'bg-primary-container text-on-primary border-primary-container' : 'bg-surface-container-lowest border-surface-container text-on-surface')}>
@@ -229,7 +229,7 @@ function GaleriaFotos({ titulo, fotos, vacio }) {
     <div>
       <p className="etiqueta mb-2">{titulo}</p>
       {fotos.length === 0 ? <p className="text-body-sm text-secondary">{vacio}</p> : (
-        <div className="flex gap-2 overflow-x-auto sin-scroll">
+        <div className="flex flex-wrap gap-2">
           {fotos.map((f) => (
             <button key={f.id} onClick={() => setAmpliada(f)} className="shrink-0">
               <img src={urlArchivo(f.archivo)} alt={titulo} className="w-24 h-24 rounded-xl object-cover bg-surface-container" loading="lazy" />

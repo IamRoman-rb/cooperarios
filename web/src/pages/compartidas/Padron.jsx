@@ -43,7 +43,7 @@ export default function Padron({ gestion }) {
               ]} filas={d.filas} vacio="No hay socios con esos filtros" />
               <div className="flex items-center justify-between mt-space-md text-body-sm text-secondary">
                 <span>{d.total} socios · página {d.pagina} de {Math.max(1, Math.ceil(d.total / d.limite))}</span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Boton chico variante="suave" icono="chevron_left" disabled={pagina <= 1} onClick={() => setPagina(pagina - 1)} aria-label="Anterior" />
                   <Boton chico variante="suave" icono="chevron_right" disabled={pagina * d.limite >= d.total} onClick={() => setPagina(pagina + 1)} aria-label="Siguiente" />
                 </div>

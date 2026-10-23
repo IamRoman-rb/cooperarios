@@ -27,7 +27,7 @@ export default function RevisionMedica() {
           <div className="space-y-space-md mt-space-md">
             {d.personas.map((p) => (
               <Tarjeta key={p.id} titulo={`${p.nombre} ${p.apellido}`} subtitulo={p.menor ? 'Menor a tu cargo' : undefined} icono="person"
-                accion={<div className="flex gap-2">
+                accion={<div className="flex flex-wrap gap-2">
                   <Boton chico variante="suave" icono="event" onClick={() => setTurno({ persona_id: p.id, tipo_revision_id: d.tipos[0]?.id, inicio: '' })}>Pedir turno</Boton>
                   <Boton chico variante="suave" icono="upload_file" onClick={() => setCertificado({ persona_id: p.id, tipo_revision_id: d.tipos[0]?.id })}>Subir certificado</Boton>
                 </div>}

@@ -17,7 +17,7 @@ export default function PagoSimulado() {
       <span className="w-14 h-14 mx-auto rounded-2xl bg-[#009ee3] text-white flex items-center justify-center"><Icono n="account_balance_wallet" tam={30} /></span>
       <h1 className="text-headline-md">Checkout de prueba</h1>
       <Aviso tono="info">Así se ve el retorno desde Mercado Pago. En producción, la acreditación llega por la notificación firmada de la pasarela.</Aviso>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Boton variante="suave" completo cargando={resolver.isPending} onClick={() => resolver.mutate('rechazado')}>Rechazar</Boton>
         <Boton variante="exito" completo icono="check" cargando={resolver.isPending} onClick={() => resolver.mutate('aprobado')}>Aprobar pago</Boton>
       </div>

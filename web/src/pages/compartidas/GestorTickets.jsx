@@ -46,11 +46,11 @@ export default function GestorTickets({ modo }) {
             </div>
             <Pestanas valor={vista} onChange={setVista} opciones={[{ value: 'tablero', label: 'Tablero', icono: 'view_kanban' }, { value: 'lista', label: 'Lista', icono: 'list' }, ...(d.indicadores ? [{ value: 'indicadores', label: 'Indicadores', icono: 'bar_chart' }] : [])]} />
             {vista === 'tablero' && (
-              <div className="flex lg:grid lg:grid-cols-5 gap-3 overflow-x-auto sin-scroll pb-2 -mx-gutter-sm px-gutter-sm lg:mx-0 lg:px-0">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 {COLUMNAS.map((c) => {
                   const lista = d.tickets.filter((t) => t.estado === c);
                   return (
-                    <div key={c} className="min-w-[260px] lg:min-w-0 bg-surface-container-low rounded-xl p-2">
+                    <div key={c} className="bg-surface-container-low rounded-xl p-2">
                       <p className="px-1 pb-2 flex items-center justify-between font-label-md text-label-md uppercase text-graphite">{capitalizar(c)}<span className="px-2 rounded-full bg-surface-container-lowest">{lista.length}</span></p>
                       {lista.length ? <ListaTickets tickets={lista} onAbrir={abrir} /> : <p className="text-body-sm text-secondary p-3 text-center">—</p>}
                     </div>
