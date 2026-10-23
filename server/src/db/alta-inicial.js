@@ -24,8 +24,8 @@ const password = crypto.randomBytes(9).toString('base64url');
 db.transaction(() => {
   if (db.prepare('SELECT COUNT(*) FROM roles').pluck().get() === 0) sembrarBase(db);
   const personaId = db.prepare('SELECT id FROM personas WHERE dni = ?').pluck().get(dni)
-    ?? db.prepare(`INSERT INTO personas (dni, nombre, apellido, email, tipo) VALUES (?, ?, ?, ?, 'empleado')`).run(dni, nombre, apellido, email).lastInsertRowid;
-  const usuarioId = db.prepare('INSERT INTO usuarios (persona_id, email, password_hash) VALUES (?, ?, ?)').run(personaId, email, bcrypt.hashSync(password, 11)).lastInsertRowid;
+    ?? db.prepare(`INSERT INTO personas (dni, nombre, apellido, email, tipo) VALUES (?, ?, ?, ?, 'empleado') RETURNING id`).get(dni, nombre, apellido, email).id;
+  const usuarioId = db.prepare('INSERT INTO usuarios (persona_id, email, password_hash) VALUES (?, ?, ?) RETURNING id').get(personaId, email, bcrypt.hashSync(password, 11)).id;
   for (const codigo of roles.split(',')) {
     const rolId = db.prepare('SELECT id FROM roles WHERE codigo = ?').pluck().get(codigo.trim());
     if (!rolId) throw new Error(`Rol inexistente: ${codigo}`);

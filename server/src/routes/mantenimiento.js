@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getDb, ahora } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { permiso, puede, tieneRol, ambitoActividades } from '../lib/rbac.js';
-import { validar, invalido, noEncontrado, prohibido } from '../lib/util.js';
+import { validar, invalido, noEncontrado, prohibido, zId } from '../lib/util.js';
 import { auditar, notificar } from '../lib/auditoria.js';
 import { crearTicket, transicion, detalleTicket, agregarFoto, comentar, PLAZOS_DIAS } from '../services/tickets.js';
 import { subida, rutaRelativa } from '../services/archivos.js';
@@ -48,7 +48,7 @@ r.get('/tickets', permiso('tickets', 'gestionar', 'leer', 'aprobar', 'solicitar'
 });
 
 r.get('/tickets/:id', permiso('tickets', 'gestionar', 'leer', 'aprobar', 'solicitar'), (req, res) => {
-  const t = detalleTicket(Number(req.params.id));
+  const t = detalleTicket(req.params.id);
   const ve = puede(req.usuario, 'tickets', 'leer') || t.reportado_por === req.usuario.id || t.asignado_a === req.usuario.id;
   if (!ve) throw prohibido();
   res.json(t);
@@ -58,7 +58,7 @@ const fotos = subida('tickets', { maxMb: 4, campos: 6 }).array('fotos', 6);
 
 r.post('/tickets', permiso('tickets', 'solicitar', 'gestionar'), fotos, (req, res) => {
   const d = validar(z.object({
-    titulo: z.string().min(4).max(120), descripcion: z.string().min(5).max(2000), sector_id: z.coerce.number().int(),
+    titulo: z.string().min(4).max(120), descripcion: z.string().min(5).max(2000), sector_id: zId,
     categoria: z.enum(['electricidad', 'plomeria', 'pileta', 'limpieza', 'carpinteria', 'pintura', 'climatizacion', 'otro']),
     prioridad: z.enum(['urgente', 'alta', 'media', 'baja']),
   }), req.body);
@@ -68,7 +68,7 @@ r.post('/tickets', permiso('tickets', 'solicitar', 'gestionar'), fotos, (req, re
 });
 
 r.post('/tickets/:id/fotos', permiso('tickets', 'solicitar', 'gestionar'), fotos, (req, res) => {
-  const t = detalleTicket(Number(req.params.id));
+  const t = detalleTicket(req.params.id);
   const tipo = req.body.tipo === 'resolucion' ? 'resolucion' : 'problema';
   if (tipo === 'resolucion' && t.asignado_a !== req.usuario.id && !puede(req.usuario, 'tickets', 'gestionar')) throw prohibido();
   if (!req.files?.length) throw invalido('Adjuntá al menos una foto');
@@ -78,15 +78,15 @@ r.post('/tickets/:id/fotos', permiso('tickets', 'solicitar', 'gestionar'), fotos
 
 r.post('/tickets/:id/comentarios', permiso('tickets', 'solicitar', 'gestionar'), (req, res) => {
   const { texto } = validar(z.object({ texto: z.string().min(1).max(1000) }), req.body);
-  const t = detalleTicket(Number(req.params.id));
+  const t = detalleTicket(req.params.id);
   comentar(t.id, req.usuario.id, texto);
   res.status(201).json({ ok: true });
 });
 
 r.post('/tickets/:id/:accion', permiso('tickets', 'solicitar', 'gestionar', 'aprobar'), (req, res) => {
-  const d = validar(z.object({ asignado_a: z.number().int().optional(), comentario: z.string().max(1000).optional(), costo: z.number().int().min(0).optional() }), req.body ?? {});
-  const estado = transicion(Number(req.params.id), req.params.accion, req.usuario, { asignadoA: d.asignado_a, comentario: d.comentario, costo: d.costo });
-  auditar(req, `ticket_${req.params.accion}`, 'tickets_mantenimiento', Number(req.params.id), null, { estado, ...d });
+  const d = validar(z.object({ asignado_a: zId.optional(), comentario: z.string().max(1000).optional(), costo: z.number().int().min(0).optional() }), req.body ?? {});
+  const estado = transicion(req.params.id, req.params.accion, req.usuario, { asignadoA: d.asignado_a, comentario: d.comentario, costo: d.costo });
+  auditar(req, `ticket_${req.params.accion}`, 'tickets_mantenimiento', req.params.id, null, { estado, ...d });
   res.json({ estado });
 });
 
@@ -100,10 +100,10 @@ r.get('/sectores', (req, res) => {
 
 r.post('/sectores', permiso('tickets', 'gestionar'), (req, res) => {
   if (!tieneRol(req.usuario, 'admin')) throw prohibido('Los sectores los gestiona Administración');
-  const d = validar(z.object({ id: z.number().int().optional(), nombre: z.string().min(2), espacio_id: z.number().int().nullable().optional(), responsable_default_id: z.number().int().nullable().optional() }), req.body);
+  const d = validar(z.object({ id: zId.optional(), nombre: z.string().min(2), espacio_id: zId.nullable().optional(), responsable_default_id: zId.nullable().optional() }), req.body);
   const db = getDb();
   const id = d.id ? (db.prepare('UPDATE sectores SET nombre = ?, espacio_id = ?, responsable_default_id = ? WHERE id = ?').run(d.nombre, d.espacio_id ?? null, d.responsable_default_id ?? null, d.id), d.id)
-    : db.prepare('INSERT INTO sectores (nombre, espacio_id, responsable_default_id) VALUES (?, ?, ?)').run(d.nombre, d.espacio_id ?? null, d.responsable_default_id ?? null).lastInsertRowid;
+    : db.prepare('INSERT INTO sectores (nombre, espacio_id, responsable_default_id) VALUES (?, ?, ?) RETURNING id').get(d.nombre, d.espacio_id ?? null, d.responsable_default_id ?? null).id;
   auditar(req, 'guardar_sector', 'sectores', id, null, d);
   res.json({ id });
 });
@@ -114,12 +114,12 @@ r.get('/inventario', permiso('inventario', 'leer', 'gestionar'), (_req, res) => 
 });
 
 r.post('/inventario', permiso('inventario', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ id: z.number().int().optional(), nombre: z.string().min(2), categoria: z.string().min(2), ubicacion: z.string().optional(),
+  const d = validar(z.object({ id: zId.optional(), nombre: z.string().min(2), categoria: z.string().min(2), ubicacion: z.string().optional(),
     cantidad: z.number().int().min(0), stock_minimo: z.number().int().min(0), unidad: z.string().default('u') }), req.body);
   const db = getDb();
   const vals = [d.nombre, d.categoria, d.ubicacion ?? null, d.cantidad, d.stock_minimo, d.unidad];
   const id = d.id ? (db.prepare('UPDATE inventario SET nombre = ?, categoria = ?, ubicacion = ?, cantidad = ?, stock_minimo = ?, unidad = ? WHERE id = ?').run(...vals, d.id), d.id)
-    : db.prepare('INSERT INTO inventario (nombre, categoria, ubicacion, cantidad, stock_minimo, unidad) VALUES (?, ?, ?, ?, ?, ?)').run(...vals).lastInsertRowid;
+    : db.prepare('INSERT INTO inventario (nombre, categoria, ubicacion, cantidad, stock_minimo, unidad) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').get(...vals).id;
   res.json({ id });
 });
 
@@ -147,11 +147,11 @@ r.get('/compras', permiso('compras', 'solicitar', 'gestionar', 'aprobar', 'leer'
 });
 
 r.post('/compras', permiso('compras', 'solicitar', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ descripcion: z.string().min(5).max(600), monto_estimado: z.number().int().positive(), ticket_id: z.number().int().nullable().optional(), actividad_id: z.number().int().nullable().optional() }), req.body);
+  const d = validar(z.object({ descripcion: z.string().min(5).max(600), monto_estimado: z.number().int().positive(), ticket_id: zId.nullable().optional(), actividad_id: zId.nullable().optional() }), req.body);
   const esDelegado = tieneRol(req.usuario, 'subcomision');
   if (esDelegado && d.actividad_id && !ambitoActividades(req.usuario).includes(d.actividad_id)) throw prohibido('Solo para tu actividad');
-  const id = getDb().prepare('INSERT INTO solicitudes_compra (solicitante_id, origen, actividad_id, ticket_id, descripcion, monto_estimado) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(req.usuario.id, esDelegado ? 'subcomision' : 'mantenimiento', d.actividad_id ?? (esDelegado ? ambitoActividades(req.usuario)[0] : null), d.ticket_id ?? null, d.descripcion, d.monto_estimado).lastInsertRowid;
+  const id = getDb().prepare('INSERT INTO solicitudes_compra (solicitante_id, origen, actividad_id, ticket_id, descripcion, monto_estimado) VALUES (?, ?, ?, ?, ?, ?) RETURNING id')
+    .get(req.usuario.id, esDelegado ? 'subcomision' : 'mantenimiento', d.actividad_id ?? (esDelegado ? ambitoActividades(req.usuario)[0] : null), d.ticket_id ?? null, d.descripcion, d.monto_estimado).id;
   notificar({ rol: 'directiva', tipo: 'aprobacion', titulo: `Solicitud de compra: ${d.descripcion.slice(0, 60)}`, referencia: '/directiva/aprobaciones' });
   notificar({ rol: 'contabilidad', tipo: 'compra', titulo: `Nueva solicitud de compra`, referencia: '/contabilidad/compras' });
   res.status(201).json({ id });

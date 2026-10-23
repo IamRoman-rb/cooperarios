@@ -15,8 +15,8 @@ export default function Actividades() {
   const [grupo, setGrupo] = useState(null);
   const guardarActividad = useAccion(() => (actividad.id ? api.put(`/api/actividades/${actividad.id}`, limpiarActividad(actividad)) : api.post('/api/actividades', limpiarActividad(actividad))), { ok: 'Actividad guardada', invalidar: ['/api/actividades'], alTerminar: () => setActividad(null) });
   const guardarGrupo = useAccion(() => {
-    const d = { ...grupo, cupo: Number(grupo.cupo), edad_min: grupo.edad_min === '' ? null : Number(grupo.edad_min), edad_max: grupo.edad_max === '' ? null : Number(grupo.edad_max), profesor_id: grupo.profesor_id ? Number(grupo.profesor_id) : null, temporada_id: grupo.temporada_id ? Number(grupo.temporada_id) : null,
-      horarios: grupo.horarios.map((h) => ({ ...h, dia_semana: Number(h.dia_semana), espacio_id: h.espacio_id ? Number(h.espacio_id) : null })) };
+    const d = { ...grupo, cupo: Number(grupo.cupo), edad_min: grupo.edad_min === '' ? null : Number(grupo.edad_min), edad_max: grupo.edad_max === '' ? null : Number(grupo.edad_max), profesor_id: grupo.profesor_id || null, temporada_id: grupo.temporada_id || null,
+      horarios: grupo.horarios.map((h) => ({ ...h, dia_semana: Number(h.dia_semana), espacio_id: h.espacio_id || null })) };
     return grupo.id ? api.put(`/api/actividades/grupos/${grupo.id}`, d) : api.post('/api/actividades/grupos', d);
   }, { ok: 'Grupo guardado', invalidar: ['/api/actividades'], alTerminar: () => setGrupo(null) });
 
@@ -102,5 +102,5 @@ export default function Actividades() {
 }
 
 function limpiarActividad(a) {
-  return { nombre: a.nombre, tipo: a.tipo, descripcion: a.descripcion || undefined, icono: a.icono || undefined, subcomision_id: a.subcomision_id ? Number(a.subcomision_id) : null, dia_vencimiento: Number(a.dia_vencimiento), activa: !!a.activa };
+  return { nombre: a.nombre, tipo: a.tipo, descripcion: a.descripcion || undefined, icono: a.icono || undefined, subcomision_id: a.subcomision_id || null, dia_vencimiento: Number(a.dia_vencimiento), activa: !!a.activa };
 }

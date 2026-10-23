@@ -92,7 +92,7 @@ function Confirmar({ eleccion, setEleccion, personaId }) {
     <Modal abierto titulo={`${a.nombre} · ${g.nombre}`} onCerrar={() => setEleccion(null)}
       pie={<><Boton variante="suave" onClick={() => setEleccion(null)}>Cancelar</Boton>
         <Boton cargando={inscribir.isPending} disabled={!c} icono={sinVacantes ? 'hourglass_top' : 'check'}
-          onClick={() => inscribir.mutate({ grupo_id: g.id, frecuencia: Number(eleccion.frecuencia), descuento_id: eleccion.descuento ? Number(eleccion.descuento) : null, persona_id: personaId, lista_espera: sinVacantes })}>
+          onClick={() => inscribir.mutate({ grupo_id: g.id, frecuencia: Number(eleccion.frecuencia), descuento_id: eleccion.descuento || null, persona_id: personaId, lista_espera: sinVacantes })}>
           {sinVacantes ? 'Anotarme en espera' : `Confirmar ${c ? pesos(c.total) : ''}`}
         </Boton></>}>
       <div className="space-y-space-md">

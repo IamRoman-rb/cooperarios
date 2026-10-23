@@ -6,7 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { getDb, ahora } from '../db/index.js';
 import { requiereSesion, sha256 } from '../lib/auth.js';
 import { permiso, puede, tieneRol } from '../lib/rbac.js';
-import { validar, invalido, noEncontrado, prohibido, local, paginar, HttpError } from '../lib/util.js';
+import { validar, invalido, noEncontrado, prohibido, local, paginar, HttpError, zId } from '../lib/util.js';
 import { auditar, notificar } from '../lib/auditoria.js';
 import { consumirQr } from '../services/qr.js';
 import { evaluar, registrarAcceso, MOTIVOS } from '../services/habilitacion.js';
@@ -89,7 +89,7 @@ r.post('/acceso/fichar-grupo', permiso('asistencia', 'gestionar'), fichar);
 function fichar(req, res) {
   const datos = validar(z.object({
     codigo: z.string().optional(), dni: z.string().optional(), nro_socio: z.number().int().optional(),
-    actividad_id: z.number().int().nullable().optional(), grupo_id: z.number().int().nullable().optional(), punto_acceso_id: z.number().int().nullable().optional(),
+    actividad_id: zId.nullable().optional(), grupo_id: zId.nullable().optional(), punto_acceso_id: zId.nullable().optional(),
   }), req.body);
   const db = getDb();
   const esProfesor = req.path.endsWith('fichar-grupo');
@@ -124,7 +124,7 @@ function fichar(req, res) {
 
 /** Apertura manual con registro (contingencia). */
 r.post('/acceso/apertura-manual', permiso('porteria', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ punto_acceso_id: z.number().int(), motivo: z.string().min(5), persona_id: z.number().int().nullable().optional() }), req.body);
+  const d = validar(z.object({ punto_acceso_id: zId, motivo: z.string().min(5), persona_id: zId.nullable().optional() }), req.body);
   getDb().prepare(`INSERT INTO accesos (persona_id, punto_acceso_id, fecha_hora, resultado, motivo_codigo, metodo, registrado_por) VALUES (?, ?, ?, 'habilitado', ?, 'apertura_manual', ?)`)
     .run(d.persona_id ?? null, d.punto_acceso_id, ahora(), `manual: ${d.motivo}`.slice(0, 120), req.usuario.id);
   auditar(req, 'apertura_manual', 'puntos_acceso', d.punto_acceso_id, null, d);
@@ -152,14 +152,15 @@ r.get('/acceso/historial', permiso('asistencia', 'leer', 'gestionar', 'leer_ambi
   const { limite, offset } = paginar(req);
   const f = [];
   const p = [];
-  if (req.query.actividad_id) { f.push('ac.actividad_id = ?'); p.push(Number(req.query.actividad_id)); }
-  if (req.query.punto_acceso_id) { f.push('ac.punto_acceso_id = ?'); p.push(Number(req.query.punto_acceso_id)); }
+  if (req.query.actividad_id) { f.push('ac.actividad_id = ?'); p.push(String(req.query.actividad_id)); }
+  if (req.query.punto_acceso_id) { f.push('ac.punto_acceso_id = ?'); p.push(String(req.query.punto_acceso_id)); }
   if (req.query.resultado) { f.push('ac.resultado = ?'); p.push(req.query.resultado); }
   if (req.query.desde) { f.push('ac.fecha_hora >= ?'); p.push(new Date(`${req.query.desde}T00:00:00-03:00`).toISOString()); }
   if (req.query.hasta) { f.push('ac.fecha_hora <= ?'); p.push(new Date(`${req.query.hasta}T23:59:59-03:00`).toISOString()); }
   if (req.query.q) { f.push(`(pe.apellido || ' ' || pe.nombre LIKE ? OR CAST(s.nro_socio AS TEXT) = ?)`); p.push(`%${req.query.q}%`, String(req.query.q)); }
   if (tieneRol(req.usuario, 'profesor') && !puede(req.usuario, 'asistencia', 'leer')) {
-    f.push(`ac.grupo_id IN (SELECT g.id FROM grupos g JOIN profesores pr ON pr.id = g.profesor_id WHERE pr.persona_id = ${Number(req.usuario.persona_id)})`);
+    f.push('ac.grupo_id IN (SELECT g.id FROM grupos g JOIN profesores pr ON pr.id = g.profesor_id WHERE pr.persona_id = ?)');
+    p.push(req.usuario.persona_id);
   }
   const where = f.length ? `WHERE ${f.join(' AND ')}` : '';
   res.json({
@@ -185,12 +186,12 @@ r.get('/acceso/puntos', permiso('porteria', 'gestionar', 'leer'), (_req, res) =>
 });
 
 r.post('/acceso/puntos', permiso('porteria', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ id: z.number().int().optional(), nombre: z.string().min(2), espacio_id: z.number().int().nullable().optional(), actividad_id: z.number().int().nullable().optional(),
+  const d = validar(z.object({ id: zId.optional(), nombre: z.string().min(2), espacio_id: zId.nullable().optional(), actividad_id: zId.nullable().optional(),
     tipo_lector: z.enum(['lector_rele', 'integracion_fabricante', 'movil']), activo: z.boolean().default(true) }), req.body);
   const db = getDb();
   const vals = [d.nombre, d.espacio_id ?? null, d.actividad_id ?? null, d.tipo_lector, d.activo ? 1 : 0];
   const id = d.id ? (db.prepare('UPDATE puntos_acceso SET nombre = ?, espacio_id = ?, actividad_id = ?, tipo_lector = ?, activo = ? WHERE id = ?').run(...vals, d.id), d.id)
-    : db.prepare('INSERT INTO puntos_acceso (nombre, espacio_id, actividad_id, tipo_lector, activo) VALUES (?, ?, ?, ?, ?)').run(...vals).lastInsertRowid;
+    : db.prepare('INSERT INTO puntos_acceso (nombre, espacio_id, actividad_id, tipo_lector, activo) VALUES (?, ?, ?, ?, ?) RETURNING id').get(...vals).id;
   auditar(req, 'guardar_punto_acceso', 'puntos_acceso', id, null, d);
   res.json({ id });
 });
@@ -198,7 +199,7 @@ r.post('/acceso/puntos', permiso('porteria', 'gestionar'), (req, res) => {
 /** Alta o rotación de la clave de un lector. La clave se muestra una sola vez; se guarda solo su hash. */
 r.post('/acceso/puntos/:id/lectores', (req, res, next) => {
   if (!puede(req.usuario, 'porteria', 'gestionar') || !(tieneRol(req.usuario, 'sistemas', 'admin'))) return next(prohibido());
-  const d = validar(z.object({ nombre: z.string().min(2), lector_id: z.number().int().optional() }), req.body);
+  const d = validar(z.object({ nombre: z.string().min(2), lector_id: zId.optional() }), req.body);
   const clave = `lk_${crypto.randomBytes(24).toString('base64url')}`;
   const db = getDb();
   if (d.lector_id) db.prepare('UPDATE lectores SET api_key_hash = ?, nombre = ? WHERE id = ? AND punto_acceso_id = ?').run(sha256(clave), d.nombre, d.lector_id, req.params.id);
@@ -222,7 +223,7 @@ r.get('/acceso/reglas', permiso('habilitacion', 'leer', 'aprobar', 'gestionar'),
 });
 
 r.put('/acceso/reglas', permiso('habilitacion', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ actividad_id: z.number().int().nullable(), gracia_cuota_dias: z.number().int().min(0).max(60), gracia_arancel_dias: z.number().int().min(0).max(60),
+  const d = validar(z.object({ actividad_id: zId.nullable(), gracia_cuota_dias: z.number().int().min(0).max(60), gracia_arancel_dias: z.number().int().min(0).max(60),
     ventana_antes_min: z.number().int().min(0).max(120), ventana_despues_min: z.number().int().min(0).max(240) }), req.body);
   const db = getDb();
   const existe = d.actividad_id == null ? db.prepare('SELECT id FROM reglas_habilitacion WHERE actividad_id IS NULL').pluck().get() : db.prepare('SELECT id FROM reglas_habilitacion WHERE actividad_id = ?').pluck().get(d.actividad_id);
@@ -235,11 +236,11 @@ r.put('/acceso/reglas', permiso('habilitacion', 'gestionar'), (req, res) => {
 
 /** Administración solicita la excepción o el bloqueo; la Comisión Directiva la aprueba (separación de funciones). */
 r.post('/acceso/manuales', permiso('habilitacion', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ persona_id: z.number().int(), actividad_id: z.number().int().nullable().optional(), tipo: z.enum(['excepcion', 'bloqueo']),
+  const d = validar(z.object({ persona_id: zId, actividad_id: zId.nullable().optional(), tipo: z.enum(['excepcion', 'bloqueo']),
     motivo: z.string().min(5), desde: z.string(), hasta: z.string() }), req.body);
   if (d.hasta < d.desde) throw invalido('La fecha de vencimiento debe ser posterior');
-  const id = getDb().prepare(`INSERT INTO habilitaciones_manuales (persona_id, actividad_id, tipo, motivo, desde, hasta, estado, solicitada_por) VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?)`)
-    .run(d.persona_id, d.actividad_id ?? null, d.tipo, d.motivo, d.desde, d.hasta, req.usuario.id).lastInsertRowid;
+  const id = getDb().prepare(`INSERT INTO habilitaciones_manuales (persona_id, actividad_id, tipo, motivo, desde, hasta, estado, solicitada_por) VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?) RETURNING id`)
+    .get(d.persona_id, d.actividad_id ?? null, d.tipo, d.motivo, d.desde, d.hasta, req.usuario.id).id;
   auditar(req, 'solicitar_habilitacion_manual', 'habilitaciones_manuales', id, null, d);
   notificar({ rol: 'directiva', tipo: 'aprobacion', titulo: `Excepción de habilitación para aprobar`, referencia: '/directiva/aprobaciones' });
   res.status(201).json({ id });
@@ -247,7 +248,7 @@ r.post('/acceso/manuales', permiso('habilitacion', 'gestionar'), (req, res) => {
 
 r.post('/acceso/manuales/:id/revocar', permiso('habilitacion', 'gestionar', 'aprobar'), (req, res) => {
   getDb().prepare(`UPDATE habilitaciones_manuales SET estado = 'revocada' WHERE id = ?`).run(req.params.id);
-  auditar(req, 'revocar_habilitacion_manual', 'habilitaciones_manuales', Number(req.params.id));
+  auditar(req, 'revocar_habilitacion_manual', 'habilitaciones_manuales', req.params.id);
   res.json({ ok: true });
 });
 

@@ -17,7 +17,7 @@ export default function PedidosCambio({ decide, tecnico }) {
   const [nuevo, setNuevo] = useState(null);
   const [filtro, setFiltro] = useState('abiertos');
   const [decision, setDecision] = useState(null);
-  const crear = useAccion(() => api.post('/api/pedidos-cambio', { ...nuevo, actividad_id: nuevo.actividad_id ? Number(nuevo.actividad_id) : null }), { ok: 'Pedido registrado', invalidar: ['/api/pedidos-cambio'], alTerminar: () => setNuevo(null) });
+  const crear = useAccion(() => api.post('/api/pedidos-cambio', { ...nuevo, actividad_id: nuevo.actividad_id || null }), { ok: 'Pedido registrado', invalidar: ['/api/pedidos-cambio'], alTerminar: () => setNuevo(null) });
   const cambiar = useAccion(({ id, ...d }) => api.post(`/api/pedidos-cambio/${id}/estado`, d), { ok: 'Pedido actualizado', invalidar: ['/api/pedidos-cambio'], alTerminar: () => setDecision(null) });
 
   return (

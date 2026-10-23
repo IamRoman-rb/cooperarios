@@ -72,7 +72,7 @@ export default function Usuarios() {
             {edicion.roles.some((r) => r.codigo === 'subcomision') && (
               <Campo etiqueta="Actividad del delegado (ámbito)">
                 <Selector value={edicion.roles.find((r) => r.codigo === 'subcomision').actividad_id ?? ''} vacio="Elegí la actividad"
-                  onChange={(e) => setEdicion({ ...edicion, roles: edicion.roles.map((r) => (r.codigo === 'subcomision' ? { ...r, actividad_id: Number(e.target.value) || null } : r)) })}
+                  onChange={(e) => setEdicion({ ...edicion, roles: edicion.roles.map((r) => (r.codigo === 'subcomision' ? { ...r, actividad_id: e.target.value || null } : r)) })}
                   opciones={(q.data?.actividades ?? []).map((a) => ({ value: a.id, label: a.nombre }))} />
               </Campo>
             )}

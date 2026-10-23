@@ -75,7 +75,7 @@ export function Transferencias() {
 
 function Cobrar({ inicial }) {
   const [busqueda, setBusqueda] = useState('');
-  const [persona, setPersona] = useState(inicial ? Number(inicial) : null);
+  const [persona, setPersona] = useState(inicial || null);
   const [elegidos, setElegidos] = useState(new Set());
   const [cobro, setCobro] = useState({ medio: 'efectivo', importe: '', referencia: '' });
   const [comprobante, setComprobante] = useState(null);

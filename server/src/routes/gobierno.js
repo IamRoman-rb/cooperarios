@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getDb, ahora, enTransaccion } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { permiso, puede, tieneRol, ambitoActividades } from '../lib/rbac.js';
-import { validar, invalido, noEncontrado, prohibido, local, json, sumarMeses } from '../lib/util.js';
+import { validar, invalido, noEncontrado, prohibido, local, json, sumarMeses, marcas, zId } from '../lib/util.js';
 import { auditar, notificar, usuarioDePersona } from '../lib/auditoria.js';
 import { subida, rutaRelativa } from '../services/archivos.js';
 
@@ -59,13 +59,13 @@ r.get('/comunicados', permiso('comunicados', 'leer', 'gestionar', 'gestionar_amb
 /** Envío segmentado por actividad, categoría o grupo; genera notificaciones a los destinatarios. */
 r.post('/comunicados', permiso('comunicados', 'gestionar', 'gestionar_ambito'), (req, res) => {
   const d = validar(z.object({ titulo: z.string().min(3).max(140), cuerpo: z.string().min(3).max(5000), categoria: z.string().default('institucional'), publico: z.boolean().default(false),
-    audiencia: z.object({ tipo: z.enum(['todos', 'actividad', 'categoria', 'grupo']), id: z.number().int().optional() }) }), req.body);
+    audiencia: z.object({ tipo: z.enum(['todos', 'actividad', 'categoria', 'grupo']), id: zId.optional() }) }), req.body);
   if (!audienciaPermitida(req, d.audiencia)) throw prohibido('No podés enviar comunicados a esa audiencia');
   if (d.publico && !puede(req.usuario, 'comunicados', 'gestionar')) throw prohibido('Solo Administración publica en el sitio');
   const db = getDb();
   const id = enTransaccion(() => {
-    const nuevo = db.prepare('INSERT INTO comunicados (titulo, cuerpo, audiencia, categoria, publico, publicado_por, publicado_en) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(d.titulo, d.cuerpo, JSON.stringify(d.audiencia), d.categoria, d.publico ? 1 : 0, req.usuario.id, ahora()).lastInsertRowid;
+    const nuevo = db.prepare('INSERT INTO comunicados (titulo, cuerpo, audiencia, categoria, publico, publicado_por, publicado_en) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id')
+      .get(d.titulo, d.cuerpo, JSON.stringify(d.audiencia), d.categoria, d.publico ? 1 : 0, req.usuario.id, ahora()).id;
     const a = d.audiencia;
     const personas = a.tipo === 'todos' ? db.prepare(`SELECT persona_id FROM socios WHERE estado = 'activo'`).pluck().all()
       : a.tipo === 'categoria' ? db.prepare(`SELECT persona_id FROM socios WHERE estado = 'activo' AND categoria_id = ?`).pluck().all(a.id)
@@ -90,11 +90,11 @@ r.get('/documentos', (req, res) => {
 
 r.post('/documentos', subida('documentos', { maxMb: 10, campos: 1 }).single('archivo'), (req, res) => {
   if (!tieneRol(req.usuario, 'admin')) throw prohibido();
-  const d = validar(z.object({ id: z.coerce.number().int().optional(), nombre: z.string().min(3), categoria: z.enum(['reglamento', 'formulario', 'circular']), rol_visible: z.string().default('todos') }), req.body);
+  const d = validar(z.object({ id: zId.optional(), nombre: z.string().min(3), categoria: z.enum(['reglamento', 'formulario', 'circular']), rol_visible: z.string().default('todos') }), req.body);
   const db = getDb();
   const archivo = req.file ? rutaRelativa('documentos', req.file) : null;
   const id = d.id ? (db.prepare('UPDATE documentos SET nombre = ?, categoria = ?, rol_visible = ?, archivo = COALESCE(?, archivo) WHERE id = ?').run(d.nombre, d.categoria, d.rol_visible, archivo, d.id), d.id)
-    : db.prepare('INSERT INTO documentos (nombre, categoria, archivo, rol_visible) VALUES (?, ?, ?, ?)').run(d.nombre, d.categoria, archivo, d.rol_visible).lastInsertRowid;
+    : db.prepare('INSERT INTO documentos (nombre, categoria, archivo, rol_visible) VALUES (?, ?, ?, ?) RETURNING id').get(d.nombre, d.categoria, archivo, d.rol_visible).id;
   auditar(req, 'guardar_documento', 'documentos', id, null, d);
   res.json({ id });
 });
@@ -103,7 +103,7 @@ r.post('/documentos', subida('documentos', { maxMb: 10, campos: 1 }).single('arc
 r.get('/actas', permiso('actas', 'leer', 'gestionar', 'leer_ambito'), (req, res) => {
   const db = getDb();
   const ambito = puede(req.usuario, 'actas', 'gestionar') ? null : tieneRol(req.usuario, 'subcomision')
-    ? db.prepare(`SELECT DISTINCT subcomision_id FROM actividades WHERE id IN (${ambitoActividades(req.usuario).join(',') || -1})`).pluck().all() : null;
+    ? db.prepare(`SELECT DISTINCT subcomision_id FROM actividades WHERE id IN (${marcas(ambitoActividades(req.usuario))})`).pluck().all(...ambitoActividades(req.usuario)) : null;
   const reuniones = db.prepare(`SELECT r.*, s.nombre AS subcomision FROM reuniones r LEFT JOIN subcomisiones s ON s.id = r.subcomision_id ORDER BY r.fecha DESC`).all()
     .filter((x) => !ambito || ambito.includes(x.subcomision_id));
   res.json({
@@ -114,23 +114,23 @@ r.get('/actas', permiso('actas', 'leer', 'gestionar', 'leer_ambito'), (req, res)
 });
 
 r.post('/actas/reuniones', permiso('actas', 'gestionar'), subida('actas', { maxMb: 10, campos: 1 }).single('acta'), (req, res) => {
-  const d = validar(z.object({ id: z.coerce.number().int().optional(), tipo: z.enum(['ordinaria', 'extraordinaria', 'subcomision', 'asamblea']), subcomision_id: z.coerce.number().int().optional(),
+  const d = validar(z.object({ id: zId.optional(), tipo: z.enum(['ordinaria', 'extraordinaria', 'subcomision', 'asamblea']), subcomision_id: zId.optional(),
     fecha: z.string(), estado: z.enum(['convocada', 'realizada', 'acta_aprobada']).default('convocada'), orden_del_dia: z.string().optional() }), req.body);
   const db = getDb();
   const acta = req.file ? rutaRelativa('actas', req.file) : null;
   const id = d.id ? (db.prepare('UPDATE reuniones SET tipo = ?, subcomision_id = ?, fecha = ?, estado = ?, orden_del_dia = ?, acta_archivo = COALESCE(?, acta_archivo) WHERE id = ?').run(d.tipo, d.subcomision_id ?? null, d.fecha, d.estado, d.orden_del_dia ?? null, acta, d.id), d.id)
-    : db.prepare('INSERT INTO reuniones (tipo, subcomision_id, fecha, estado, orden_del_dia, acta_archivo) VALUES (?, ?, ?, ?, ?, ?)').run(d.tipo, d.subcomision_id ?? null, d.fecha, d.estado, d.orden_del_dia ?? null, acta).lastInsertRowid;
+    : db.prepare('INSERT INTO reuniones (tipo, subcomision_id, fecha, estado, orden_del_dia, acta_archivo) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').get(d.tipo, d.subcomision_id ?? null, d.fecha, d.estado, d.orden_del_dia ?? null, acta).id;
   auditar(req, 'guardar_reunion', 'reuniones', id, null, d);
   res.json({ id });
 });
 
 r.post('/actas/resoluciones', permiso('actas', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ id: z.number().int().optional(), reunion_id: z.number().int(), numero: z.string().optional(), texto: z.string().min(5), responsable_id: z.number().int().nullable().optional(),
+  const d = validar(z.object({ id: zId.optional(), reunion_id: zId, numero: z.string().optional(), texto: z.string().min(5), responsable_id: zId.nullable().optional(),
     estado: z.enum(['pendiente', 'en_curso', 'cumplida']).default('pendiente'), vence_en: z.string().nullable().optional() }), req.body);
   const db = getDb();
   const vals = [d.reunion_id, d.numero ?? null, d.texto, d.responsable_id ?? null, d.estado, d.vence_en ?? null];
   const id = d.id ? (db.prepare('UPDATE resoluciones SET reunion_id = ?, numero = ?, texto = ?, responsable_id = ?, estado = ?, vence_en = ? WHERE id = ?').run(...vals, d.id), d.id)
-    : db.prepare('INSERT INTO resoluciones (reunion_id, numero, texto, responsable_id, estado, vence_en) VALUES (?, ?, ?, ?, ?, ?)').run(...vals).lastInsertRowid;
+    : db.prepare('INSERT INTO resoluciones (reunion_id, numero, texto, responsable_id, estado, vence_en) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').get(...vals).id;
   auditar(req, 'guardar_resolucion', 'resoluciones', id, null, d);
   res.json({ id });
 });
@@ -163,15 +163,15 @@ r.get('/pedidos-cambio', permiso('pedidos_cambio', 'solicitar', 'aprobar', 'gest
 
 r.post('/pedidos-cambio', permiso('pedidos_cambio', 'solicitar', 'aprobar'), (req, res) => {
   const d = validar(z.object({ tipo: z.enum(['nueva_seccion', 'nuevo_rol', 'cambio_permisos']), titulo: z.string().min(5).max(120), justificacion: z.string().min(20).max(3000),
-    actividad_id: z.number().int().nullable().optional(), prioridad: z.enum(['alta', 'media', 'baja']).default('media') }), req.body);
+    actividad_id: zId.nullable().optional(), prioridad: z.enum(['alta', 'media', 'baja']).default('media') }), req.body);
   const esDirectiva = tieneRol(req.usuario, 'directiva');
   const esDelegado = tieneRol(req.usuario, 'subcomision');
   if (esDelegado && !esDirectiva) {
     if (!d.actividad_id || !ambitoActividades(req.usuario).includes(d.actividad_id)) throw prohibido('El pedido debe ser para tu actividad');
   }
   const origen = esDirectiva ? 'comision_directiva' : esDelegado ? 'representante_actividad' : 'administracion';
-  const id = getDb().prepare('INSERT INTO pedidos_cambio (solicitante_id, origen, actividad_id, tipo, titulo, justificacion, prioridad) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(req.usuario.id, origen, d.actividad_id ?? null, d.tipo, d.titulo, d.justificacion, d.prioridad).lastInsertRowid;
+  const id = getDb().prepare('INSERT INTO pedidos_cambio (solicitante_id, origen, actividad_id, tipo, titulo, justificacion, prioridad) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id')
+    .get(req.usuario.id, origen, d.actividad_id ?? null, d.tipo, d.titulo, d.justificacion, d.prioridad).id;
   notificar({ rol: 'directiva', tipo: 'pedido_cambio', titulo: `Nuevo pedido de cambio: ${d.titulo}`, referencia: '/directiva/pedidos-cambio' });
   notificar({ rol: 'sistemas', tipo: 'pedido_cambio', titulo: `Nuevo pedido para analizar: ${d.titulo}`, referencia: '/sistema/roles' });
   res.status(201).json({ id });
@@ -339,7 +339,7 @@ r.post('/privacidad/solicitudes/:id', permiso('privacidad', 'gestionar'), (req, 
 r.post('/privacidad/anonimizar/:personaId', permiso('privacidad', 'gestionar'), (req, res) => {
   const { motivo } = validar(z.object({ motivo: z.string().min(5) }), req.body);
   const db = getDb();
-  const id = Number(req.params.personaId);
+  const id = req.params.personaId;
   const p = db.prepare('SELECT * FROM personas WHERE id = ?').get(id);
   if (!p) throw noEncontrado('Persona');
   if (db.prepare(`SELECT 1 FROM socios WHERE persona_id = ? AND estado != 'baja'`).get(id)) throw invalido('Primero debe darse de baja como socio');

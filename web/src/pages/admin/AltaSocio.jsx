@@ -19,7 +19,7 @@ export default function AltaSocio() {
   const alta = useAccion((d) => api.post('/api/padron/socios', d), { ok: (r) => `Socio N° ${r.nro_socio} dado de alta`, invalidar: ['/api/padron'], alTerminar: (r) => navegar(`/admin/socios/${r.persona_id}`) });
 
   const enviar = (d) => alta.mutate({
-    ...d, categoria_id: d.categoria_id ? Number(d.categoria_id) : undefined, grupo_familiar_id: grupo?.id ?? null,
+    ...d, categoria_id: d.categoria_id || undefined, grupo_familiar_id: grupo?.id ?? null,
     tutor_persona_id: grupo && anios < 18 ? grupo.titular_persona_id : null,
   });
   const fijas = (categorias.data ?? []).filter((c) => c.regla_cuota.tipo === 'fija');

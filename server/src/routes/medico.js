@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { permiso, puede } from '../lib/rbac.js';
-import { validar, invalido, noEncontrado, local, edad, sumarDias } from '../lib/util.js';
+import { validar, invalido, noEncontrado, local, edad, sumarDias, zId } from '../lib/util.js';
 import { auditar, notificar, usuarioDePersona } from '../lib/auditoria.js';
 import { firmarRevision, validarCertificado, vencimientos } from '../services/medico.js';
 import { subida, rutaRelativa } from '../services/archivos.js';
@@ -38,10 +38,10 @@ r.get('/agenda', permiso('turnos_medicos', 'gestionar', 'leer'), (req, res) => {
 });
 
 r.post('/turnos', permiso('turnos_medicos', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ persona_id: z.number().int(), tipo_revision_id: z.number().int(), inicio: z.string() }), req.body);
+  const d = validar(z.object({ persona_id: zId, tipo_revision_id: zId, inicio: z.string() }), req.body);
   const prof = getDb().prepare('SELECT id FROM profesionales_salud WHERE activo = 1 LIMIT 1').pluck().get();
-  const id = getDb().prepare(`INSERT INTO turnos_revision (persona_id, tipo_revision_id, profesional_id, inicio, estado) VALUES (?, ?, ?, ?, 'confirmado')`)
-    .run(d.persona_id, d.tipo_revision_id, prof, new Date(d.inicio).toISOString()).lastInsertRowid;
+  const id = getDb().prepare(`INSERT INTO turnos_revision (persona_id, tipo_revision_id, profesional_id, inicio, estado) VALUES (?, ?, ?, ?, 'confirmado') RETURNING id`)
+    .get(d.persona_id, d.tipo_revision_id, prof, new Date(d.inicio).toISOString()).id;
   const u = usuarioDePersona(d.persona_id);
   if (u) notificar({ usuarioId: u, tipo: 'turno', titulo: `Turno de revisión médica confirmado`, referencia: '/socio/revision-medica' });
   res.status(201).json({ id });
@@ -72,7 +72,7 @@ r.get('/buscar', permiso('turnos_medicos', 'gestionar', 'leer'), (req, res) => {
 /** Ficha para la revisión: actividades que la exigen, consentimiento y últimas constancias. */
 r.get('/personas/:id', permiso('resultados_medicos', 'gestionar'), (req, res) => {
   const db = getDb();
-  const id = Number(req.params.id);
+  const id = req.params.id;
   const p = db.prepare(`SELECT p.id, p.nombre, p.apellido, p.dni, p.fecha_nacimiento, p.foto, s.nro_socio FROM personas p LEFT JOIN socios s ON s.persona_id = p.id WHERE p.id = ?`).get(id);
   if (!p) throw noEncontrado('Persona');
   res.json({
@@ -93,9 +93,9 @@ function historial(personaId) {
 }
 
 r.post('/revisiones', permiso('resultados_medicos', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ persona_id: z.number().int(), tipo_revision_id: z.number().int(), resultado: z.enum(['apto', 'apto_restricciones', 'no_apto', 'postergado']),
-    restricciones: z.string().max(200).nullable().optional(), vence_en: z.string().nullable().optional(), turno_id: z.number().int().nullable().optional(),
-    reemplaza_id: z.number().int().nullable().optional() }), req.body);
+  const d = validar(z.object({ persona_id: zId, tipo_revision_id: zId, resultado: z.enum(['apto', 'apto_restricciones', 'no_apto', 'postergado']),
+    restricciones: z.string().max(200).nullable().optional(), vence_en: z.string().nullable().optional(), turno_id: zId.nullable().optional(),
+    reemplaza_id: zId.nullable().optional() }), req.body);
   if (d.resultado === 'apto_restricciones' && !d.restricciones) throw invalido('Codificá las restricciones');
   const id = firmarRevision({ personaId: d.persona_id, tipoRevisionId: d.tipo_revision_id, resultado: d.resultado, restricciones: d.restricciones, venceEn: d.vence_en, turnoId: d.turno_id, reemplazaId: d.reemplaza_id }, req.usuario);
   auditar(req, 'firmar_revision', 'revisiones_medicas', id, null, { persona_id: d.persona_id, resultado: d.resultado, vence_en: d.vence_en, reemplaza_id: d.reemplaza_id });
@@ -122,10 +122,10 @@ r.get('/certificados', permiso('resultados_medicos', 'gestionar', 'solicitar'), 
 
 /** Carga de certificado escaneado por el auxiliar, para validación del médico. */
 r.post('/certificados', permiso('resultados_medicos', 'solicitar', 'gestionar'), subida('certificados', { maxMb: 6, campos: 1 }).single('certificado'), (req, res) => {
-  const d = validar(z.object({ persona_id: z.coerce.number().int(), tipo_revision_id: z.coerce.number().int() }), req.body);
+  const d = validar(z.object({ persona_id: zId, tipo_revision_id: zId }), req.body);
   if (!req.file) throw invalido('Adjuntá el certificado escaneado');
-  const id = getDb().prepare(`INSERT INTO revisiones_medicas (persona_id, tipo_revision_id, fecha, resultado, certificado_externo, cargado_por) VALUES (?, ?, ?, 'pendiente_validacion', ?, ?)`)
-    .run(d.persona_id, d.tipo_revision_id, local().fecha, rutaRelativa('certificados', req.file), req.usuario.id).lastInsertRowid;
+  const id = getDb().prepare(`INSERT INTO revisiones_medicas (persona_id, tipo_revision_id, fecha, resultado, certificado_externo, cargado_por) VALUES (?, ?, ?, 'pendiente_validacion', ?, ?) RETURNING id`)
+    .get(d.persona_id, d.tipo_revision_id, local().fecha, rutaRelativa('certificados', req.file), req.usuario.id).id;
   notificar({ rol: 'medico', tipo: 'revision_medica', titulo: 'Certificado externo cargado para validar', referencia: '/medico/certificados' });
   res.status(201).json({ id });
 });
@@ -134,8 +134,8 @@ r.post('/certificados/:id/validar', permiso('resultados_medicos', 'gestionar'), 
   const d = validar(z.object({ aprobar: z.boolean(), resultado: z.enum(['apto', 'apto_restricciones']).default('apto'), restricciones: z.string().nullable().optional(),
     vence_en: z.string().optional(), motivo: z.string().optional() }), req.body);
   if (!d.aprobar && !d.motivo) throw invalido('Indicá el motivo del rechazo');
-  validarCertificado(Number(req.params.id), { aprobar: d.aprobar, resultado: d.resultado, restricciones: d.restricciones, venceEn: d.vence_en, motivo: d.motivo }, req.usuario);
-  auditar(req, d.aprobar ? 'validar_certificado' : 'rechazar_certificado', 'revisiones_medicas', Number(req.params.id), null, { resultado: d.resultado, vence_en: d.vence_en });
+  validarCertificado(req.params.id, { aprobar: d.aprobar, resultado: d.resultado, restricciones: d.restricciones, venceEn: d.vence_en, motivo: d.motivo }, req.usuario);
+  auditar(req, d.aprobar ? 'validar_certificado' : 'rechazar_certificado', 'revisiones_medicas', req.params.id, null, { resultado: d.resultado, vence_en: d.vence_en });
   res.json({ ok: true });
 });
 
@@ -157,7 +157,7 @@ r.get('/recordatorios', permiso('turnos_medicos', 'gestionar'), (_req, res) => {
 });
 
 r.post('/recordatorios', permiso('turnos_medicos', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ persona_ids: z.array(z.number().int()).min(1), mensaje: z.string().min(5).max(200) }), req.body);
+  const d = validar(z.object({ persona_ids: z.array(zId).min(1), mensaje: z.string().min(5).max(200) }), req.body);
   let enviados = 0;
   for (const id of d.persona_ids) {
     const u = usuarioDePersona(id) ?? getDb().prepare('SELECT u.id FROM tutores t JOIN usuarios u ON u.persona_id = t.tutor_persona_id WHERE t.menor_persona_id = ?').pluck().get(id);

@@ -14,7 +14,7 @@ export default function Actas() {
   const [resolucion, setResolucion] = useState(null);
   const [archivo, setArchivo] = useState([]);
   const guardarReunion = useAccion(() => api.post('/api/actas/reuniones', formData({ ...reunion, subcomision_id: reunion.subcomision_id || undefined }, { acta: archivo[0] })), { ok: 'Reunión guardada', invalidar: ['/api/actas'], alTerminar: () => { setReunion(null); setArchivo([]); } });
-  const guardarResolucion = useAccion(() => api.post('/api/actas/resoluciones', { ...resolucion, reunion_id: Number(resolucion.reunion_id), responsable_id: resolucion.responsable_id ? Number(resolucion.responsable_id) : null, vence_en: resolucion.vence_en || null }), { ok: 'Resolución guardada', invalidar: ['/api/actas', '/api/tablero'], alTerminar: () => setResolucion(null) });
+  const guardarResolucion = useAccion(() => api.post('/api/actas/resoluciones', { ...resolucion, reunion_id: resolucion.reunion_id, responsable_id: resolucion.responsable_id || null, vence_en: resolucion.vence_en || null }), { ok: 'Resolución guardada', invalidar: ['/api/actas', '/api/tablero'], alTerminar: () => setResolucion(null) });
   return (
     <Consulta q={q}>
       {(d) => (

@@ -50,9 +50,9 @@ export function firmarRevision({ personaId, tipoRevisionId, resultado, restricci
   const vence = ['apto', 'apto_restricciones'].includes(resultado) ? (venceEn ?? sumarMeses(hoy, tipo.vigencia_meses)) : null;
   const id = db.prepare(`INSERT INTO revisiones_medicas
     (persona_id, tipo_revision_id, profesional_id, fecha, resultado, restricciones, vence_en, cargado_por, validada_por, firmada_en, reemplaza_id, consentimiento_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(
     personaId, tipoRevisionId, prof.id, hoy, resultado, restricciones, vence, usuario.id, usuario.id, ahora(), reemplazaId, consentimientoId,
-  ).lastInsertRowid;
+  ).id;
   if (turnoId) db.prepare(`UPDATE turnos_revision SET estado = 'atendido' WHERE id = ?`).run(turnoId);
   if (tipo.importe > 0 && !reemplazaId) {
     crearCargo({ personaId, conceptoTipo: 'revision_medica', descripcion: `Revisión médica: ${tipo.nombre}`, periodo: hoy.slice(0, 7),

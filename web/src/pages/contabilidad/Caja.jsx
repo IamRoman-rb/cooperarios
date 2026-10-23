@@ -10,8 +10,8 @@ export default function Caja() {
   const q = useDatos(`/api/finanzas/caja${caja ? `?caja_id=${caja}` : ''}`);
   const [arqueo, setArqueo] = useState(null);
   const [mov, setMov] = useState(null);
-  const contar = useAccion(() => api.post('/api/finanzas/caja/arqueo', { caja_id: Number(arqueo.caja_id), contado: aCentavos(arqueo.contado), observacion: arqueo.observacion || undefined }), { ok: (r) => (r.diferencia ? `Arqueo con diferencia de ${pesos(r.diferencia)}` : 'Arqueo sin diferencias'), invalidar: ['/api/finanzas'], alTerminar: () => setArqueo(null) });
-  const mover = useAccion(() => api.post('/api/finanzas/caja/movimientos', { caja_id: Number(mov.caja_id), caja_destino_id: mov.destino ? Number(mov.destino) : undefined, importe: aCentavos(mov.importe), concepto: mov.concepto }), { ok: 'Movimiento registrado', invalidar: ['/api/finanzas'], alTerminar: () => setMov(null) });
+  const contar = useAccion(() => api.post('/api/finanzas/caja/arqueo', { caja_id: arqueo.caja_id, contado: aCentavos(arqueo.contado), observacion: arqueo.observacion || undefined }), { ok: (r) => (r.diferencia ? `Arqueo con diferencia de ${pesos(r.diferencia)}` : 'Arqueo sin diferencias'), invalidar: ['/api/finanzas'], alTerminar: () => setArqueo(null) });
+  const mover = useAccion(() => api.post('/api/finanzas/caja/movimientos', { caja_id: mov.caja_id, caja_destino_id: mov.destino || undefined, importe: aCentavos(mov.importe), concepto: mov.concepto }), { ok: 'Movimiento registrado', invalidar: ['/api/finanzas'], alTerminar: () => setMov(null) });
   return (
     <Consulta q={q}>
       {(d) => (

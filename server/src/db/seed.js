@@ -11,9 +11,16 @@ import { local, sumarDias, sumarMeses } from '../lib/util.js';
 export const PASSWORD_DEMO = 'Cooperarios2026';
 const $ = (pesos) => Math.round(pesos * 100);
 
-const insertador = (db) => (tabla, fila) => {
-  const cols = Object.keys(fila);
-  return Number(db.prepare(`INSERT INTO ${tabla} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`).run(...Object.values(fila)).lastInsertRowid);
+/** INSERT genérico; devuelve el UUID generado, o null en las tablas con clave natural o compuesta. */
+const insertador = (db) => {
+  const conId = new Map();
+  return (tabla, fila) => {
+    if (!conId.has(tabla)) conId.set(tabla, !!db.prepare(`SELECT 1 FROM pragma_table_info(?) WHERE name = 'id'`).get(tabla));
+    const cols = Object.keys(fila);
+    const sql = `INSERT INTO ${tabla} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`;
+    if (!conId.get(tabla)) return db.prepare(sql).run(...Object.values(fila)), null;
+    return db.prepare(`${sql} RETURNING id`).get(...Object.values(fila)).id;
+  };
 };
 
 /**
@@ -81,7 +88,7 @@ export function sembrarBase(db) {
   const descuento = {
     jubilado: ins('descuentos', { nombre: 'Jubilados', tipo: 'porcentaje', valor: 15, condicion: 'jubilado', solo_socios: 1 }),
     familia: ins('descuentos', { nombre: 'Grupo familiar', tipo: 'porcentaje', valor: 10, condicion: 'grupo_familiar', solo_socios: 1 }),
-    promo: ins('descuentos', { nombre: 'Horario promocional (20%)', tipo: 'porcentaje', valor: 20, condicion: 'horario_promocional', solo_socios: 0 }),
+    promo: ins('descuentos', { nombre: 'Horario promocional', tipo: 'porcentaje', valor: 20, condicion: 'horario_promocional', solo_socios: 0 }),
   };
   const tipoRev = {
     natatorio: ins('tipos_revision', { nombre: 'Revisación para natatorio', vigencia_meses: 1, concepto_arancel_id: concepto.revision_medica, importe: $(6000) }),
@@ -196,7 +203,7 @@ export function sembrar(db) {
   for (const [p, cargo] of [[pCarlos, 'Presidente'], [pGraciela, 'Secretaria'], [persona('Héctor', 'Ruiz', '1966-02-02'), 'Tesorero'], [persona('Mirta', 'Suárez', '1970-09-09'), 'Vocal titular']]) {
     ins('cargos_directivos', { persona_id: p, cargo, desde: '2025-05-01' });
   }
-  ins('profesionales_salud', { usuario_id: uMedico, matricula: 'MP 45.821', especialidad: 'Medicina del deporte' });
+  const profesional = ins('profesionales_salud', { usuario_id: uMedico, matricula: 'MP 45.821', especialidad: 'Medicina del deporte' });
 
   // Socios generados
   const sociosGenerados = [];
@@ -333,7 +340,7 @@ export function sembrar(db) {
 
   // Revisiones médicas
   const revision = (personaId, tipo, fecha, resultado, vence) => ins('revisiones_medicas', {
-    persona_id: personaId, tipo_revision_id: tipo, profesional_id: 1, fecha, resultado, vence_en: vence, cargado_por: uMedico, validada_por: uMedico, firmada_en: `${fecha}T15:00:00.000Z`,
+    persona_id: personaId, tipo_revision_id: tipo, profesional_id: profesional, fecha, resultado, vence_en: vence, cargado_por: uMedico, validada_por: uMedico, firmada_en: `${fecha}T15:00:00.000Z`,
   });
   revision(pLucia, tipoRev.natatorio, sumarDias(hoy, -20), 'apto', sumarDias(hoy, 11));
   revision(pTeo, tipoRev.deportivo, sumarDias(hoy, -300), 'apto', sumarDias(hoy, 65));
@@ -351,9 +358,9 @@ export function sembrar(db) {
   // Certificado externo pendiente de validación (Emma) y turnos
   ins('revisiones_medicas', { persona_id: pEmma, tipo_revision_id: tipoRev.natatorio, fecha: sumarDias(hoy, -1), resultado: 'pendiente_validacion', certificado_externo: 'certificados/demo-certificado.pdf', cargado_por: uSocio });
   for (const [i, p] of sociosGenerados.slice(0, 6).entries()) {
-    ins('turnos_revision', { persona_id: p, tipo_revision_id: i % 2 ? tipoRev.deportivo : tipoRev.natatorio, profesional_id: 1, inicio: `${hoy}T${String(12 + i).padStart(2, '0')}:00:00.000Z`, estado: i < 2 ? 'atendido' : 'confirmado' });
+    ins('turnos_revision', { persona_id: p, tipo_revision_id: i % 2 ? tipoRev.deportivo : tipoRev.natatorio, profesional_id: profesional, inicio: `${hoy}T${String(12 + i).padStart(2, '0')}:00:00.000Z`, estado: i < 2 ? 'atendido' : 'confirmado' });
   }
-  ins('turnos_revision', { persona_id: pTeo, tipo_revision_id: tipoRev.deportivo, profesional_id: 1, inicio: `${sumarDias(hoy, 2)}T21:30:00.000Z`, estado: 'solicitado' });
+  ins('turnos_revision', { persona_id: pTeo, tipo_revision_id: tipoRev.deportivo, profesional_id: profesional, inicio: `${sumarDias(hoy, 2)}T21:30:00.000Z`, estado: 'solicitado' });
 
   // ---------- Cargos y pagos de los últimos tres meses ----------
   const crearCargo = (personaId, tipo, descripcion, per, importe, vencimiento, origenTipo, origenId) =>
@@ -397,9 +404,9 @@ export function sembrar(db) {
         cargos.push(crearCargo(s.persona_id, 'arancel', `${i.nombre} ${per}`, per, importe, `${per}-10`, 'inscripcion', i.id));
       }
       // Morosos: suspendidos y algunos que deben el mes actual o el anterior.
-      const moroso = s.estado === 'suspendido' || (s.persona_id % 7 === 3 && n >= 1) || (s.persona_id === pTeo && actual);
+      const moroso = s.estado === 'suspendido' || (sociosGenerados.indexOf(s.persona_id) % 7 === 3 && n >= 1) || (s.persona_id === pTeo && actual);
       if (moroso) continue;
-      if (actual && (s.persona_id % 3 === 0 || s.persona_id === pLucia || s.persona_id === pEmma)) continue; // pendientes del mes en curso
+      if (actual && (sociosGenerados.indexOf(s.persona_id) % 3 === 0 || s.persona_id === pLucia || s.persona_id === pEmma)) continue; // pendientes del mes en curso
       const total = cargos.reduce((t, c) => t + db.prepare('SELECT importe FROM cargos WHERE id = ?').pluck().get(c), 0);
       const dia = String(2 + Math.floor(azar() * 8)).padStart(2, '0');
       pagar(s.persona_id, cargos, total, elegir(medios), `${per}-${dia}T14:${String(Math.floor(azar() * 59)).padStart(2, '0')}:00.000Z`);
@@ -412,7 +419,7 @@ export function sembrar(db) {
   // Transferencias informadas por aprobar
   const pendientesLucia = db.prepare(`SELECT id, importe FROM cargos WHERE persona_id = ? AND estado = 'pendiente' AND concepto_id = ? LIMIT 1`).get(pLucia, concepto.cuota_social);
   ins('transferencias_informadas', { persona_id: pLucia, cargo_ids: JSON.stringify([pendientesLucia.id]), monto: pendientesLucia.importe, referencia: 'Transferencia Banco Galicia op. 88123', comprobante_archivo: 'comprobantes/demo-transferencia.pdf', estado: 'pendiente' });
-  for (const p of sociosGenerados.filter((x) => x % 3 === 0).slice(0, 3)) {
+  for (const p of sociosGenerados.filter((_, i) => i % 3 === 0).slice(0, 3)) {
     const c = db.prepare(`SELECT id, importe FROM cargos WHERE persona_id = ? AND estado = 'pendiente' LIMIT 1`).get(p);
     if (c) ins('transferencias_informadas', { persona_id: p, cargo_ids: JSON.stringify([c.id]), monto: c.importe, referencia: `Alias COOPERARIOS.CLUB.QUILMES · op. ${Math.floor(10000 + azar() * 89999)}`, estado: 'pendiente' });
   }

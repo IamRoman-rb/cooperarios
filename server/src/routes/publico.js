@@ -28,7 +28,7 @@ r.get('/actividades', (req, res) => {
 });
 
 r.get('/actividades/:id', (req, res) => {
-  const a = detalleActividad(Number(req.params.id));
+  const a = detalleActividad(req.params.id);
   if (!a) throw noEncontrado('Actividad');
   res.json(a);
 });
@@ -73,8 +73,8 @@ r.post('/solicitud-alta', altaLimite, (req, res) => {
   }), req.body);
   const version = parametros().texto_consentimiento_version;
   const existe = getDb().prepare('SELECT 1 FROM personas WHERE dni = ?').get(datos.dni);
-  const id = getDb().prepare(`INSERT INTO solicitudes (tipo, datos_json, estado) VALUES ('alta', ?, 'pendiente')`)
-    .run(JSON.stringify({ ...datos, consentimiento_version: version, ya_registrado: !!existe, recibida_ip: req.ip })).lastInsertRowid;
+  const id = getDb().prepare(`INSERT INTO solicitudes (tipo, datos_json, estado) VALUES ('alta', ?, 'pendiente') RETURNING id`)
+    .get(JSON.stringify({ ...datos, consentimiento_version: version, ya_registrado: !!existe, recibida_ip: req.ip })).id;
   notificar({ rol: 'admin', tipo: 'solicitud', titulo: `Nueva solicitud de alta: ${datos.apellido}, ${datos.nombre}`, referencia: '/admin/solicitudes' });
   res.status(201).json({ id, mensaje: 'Recibimos tu solicitud. Administración te contactará para completar el alta.' });
 });

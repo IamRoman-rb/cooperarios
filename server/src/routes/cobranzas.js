@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getDb, ahora, enTransaccion } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { permiso, puede, ambitoActividades } from '../lib/rbac.js';
-import { validar, invalido, noEncontrado, local, json, HttpError } from '../lib/util.js';
+import { validar, invalido, noEncontrado, local, json, HttpError, marcas, zId } from '../lib/util.js';
 import { auditar, notificar, usuarioDePersona } from '../lib/auditoria.js';
 import { registrarPago, notaCredito, cargosDe, resumenCuenta, crearCargo, saldoCargo } from '../services/cuenta.js';
 import { firmaValida, consultarPago, acreditar } from '../services/mercadopago.js';
@@ -22,7 +22,7 @@ r.post('/pagos/webhook/mercadopago', async (req, res) => {
   const paymentId = req.query['data.id'] ?? req.body?.data?.id;
   if (tipo !== 'payment' || !paymentId) return res.json({ ok: true });
   const pago = await consultarPago(paymentId);
-  acreditar({ pagoOnlineId: Number(pago.external_reference), paymentId: String(pago.id), estado: pago.status, notificacionHash: sha256(JSON.stringify(req.body)) });
+  acreditar({ pagoOnlineId: String(pago.external_reference), paymentId: String(pago.id), estado: pago.status, notificacionHash: sha256(JSON.stringify(req.body)) });
   res.json({ ok: true });
 });
 
@@ -62,14 +62,14 @@ r.get('/cobranzas/morosidad', permiso('cuenta_corriente', 'leer', 'gestionar', '
     const ambito = ambitoActividades(req.usuario);
     const deuda = db.prepare(`SELECT COUNT(DISTINCT c.persona_id) AS personas, COALESCE(SUM(c.importe),0) AS total FROM cargos c
       JOIN inscripciones i ON c.origen_tipo = 'inscripcion' AND c.origen_id = i.id JOIN grupos g ON g.id = i.grupo_id
-      WHERE g.actividad_id IN (${ambito.length ? ambito.join(',') : -1}) AND c.estado IN ('pendiente','parcial') AND c.vencimiento < ?`).get(hoy);
+      WHERE g.actividad_id IN (${marcas(ambito)}) AND c.estado IN ('pendiente','parcial') AND c.vencimiento < ?`).get(...ambito, hoy);
     return res.json({ agregado: deuda });
   }
   res.json({ filas, tramos: ['0-30', '31-60', '61-90', '+90'].map((t) => ({ tramo: t, personas: filas.filter((f) => f.tramo === t).length, total: filas.filter((f) => f.tramo === t).reduce((s, f) => s + f.deuda, 0) })) });
 });
 
 r.get('/cobranzas/cuenta/:personaId', permiso('cuenta_corriente', 'leer', 'gestionar'), (req, res) => {
-  const id = Number(req.params.personaId);
+  const id = req.params.personaId;
   const db = getDb();
   res.json({
     persona: db.prepare(`SELECT p.id, p.nombre, p.apellido, p.dni, s.nro_socio FROM personas p LEFT JOIN socios s ON s.persona_id = p.id WHERE p.id = ?`).get(id),
@@ -87,7 +87,7 @@ r.get('/cobranzas/buscar', permiso('cuenta_corriente', 'leer', 'gestionar'), (re
 
 /** Cobro en Administración (efectivo u otro medio) con recibo numerado. */
 r.post('/cobranzas/cobros', permiso('cuenta_corriente', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ persona_id: z.number().int(), cargo_ids: z.array(z.number().int()).min(1), importe: z.number().int().positive(),
+  const d = validar(z.object({ persona_id: zId, cargo_ids: z.array(zId).min(1), importe: z.number().int().positive(),
     medio: z.enum(['efectivo', 'transferencia', 'billetera', 'otro']).default('efectivo'), referencia: z.string().max(120).optional() }), req.body);
   const out = enTransaccion(() => registrarPago({ personaId: d.persona_id, medio: d.medio, importe: d.importe, cargoIds: d.cargo_ids, referencia: d.referencia, usuarioId: req.usuario.id }));
   auditar(req, 'registrar_cobro', 'pagos', out.pagoId, null, d);
@@ -95,7 +95,7 @@ r.post('/cobranzas/cobros', permiso('cuenta_corriente', 'gestionar'), (req, res)
 });
 
 r.post('/cobranzas/cargos', permiso('cuenta_corriente', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ persona_id: z.number().int(), concepto_tipo: z.enum(['cuota_social', 'arancel', 'alquiler', 'invitado', 'llave', 'revision_medica', 'otro']),
+  const d = validar(z.object({ persona_id: zId, concepto_tipo: z.enum(['cuota_social', 'arancel', 'alquiler', 'invitado', 'llave', 'revision_medica', 'otro']),
     descripcion: z.string().min(3), importe: z.number().int().positive(), vencimiento: z.string() }), req.body);
   const id = crearCargo({ personaId: d.persona_id, conceptoTipo: d.concepto_tipo, descripcion: d.descripcion, periodo: d.vencimiento.slice(0, 7), importe: d.importe, vencimiento: d.vencimiento, origenTipo: 'ajuste' });
   auditar(req, 'crear_cargo', 'cargos', id, null, d);
@@ -103,14 +103,14 @@ r.post('/cobranzas/cargos', permiso('cuenta_corriente', 'gestionar'), (req, res)
 });
 
 r.post('/cobranzas/notas-credito', permiso('cuenta_corriente', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ cargo_id: z.number().int(), importe: z.number().int().positive(), motivo: z.string().min(5) }), req.body);
+  const d = validar(z.object({ cargo_id: zId, importe: z.number().int().positive(), motivo: z.string().min(5) }), req.body);
   const out = enTransaccion(() => notaCredito({ cargoId: d.cargo_id, importe: d.importe, motivo: d.motivo, usuarioId: req.usuario.id }));
   auditar(req, 'nota_credito', 'cargos', d.cargo_id, null, d);
   res.status(201).json(out);
 });
 
 r.post('/cobranzas/recordatorios', permiso('cuenta_corriente', 'gestionar'), (req, res) => {
-  const { persona_ids } = validar(z.object({ persona_ids: z.array(z.number().int()).min(1) }), req.body);
+  const { persona_ids } = validar(z.object({ persona_ids: z.array(zId).min(1) }), req.body);
   let enviados = 0;
   for (const id of persona_ids) {
     const u = usuarioDePersona(id);

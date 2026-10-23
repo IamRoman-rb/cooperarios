@@ -9,7 +9,7 @@ export default function Sectores() {
   const esp = useDatos('/api/espacios');
   const tick = useDatos('/api/tickets?estado=__');
   const [edicion, setEdicion] = useState(null);
-  const guardar = useAccion(() => api.post('/api/sectores', { ...edicion, espacio_id: edicion.espacio_id ? Number(edicion.espacio_id) : null, responsable_default_id: edicion.responsable_default_id ? Number(edicion.responsable_default_id) : null }), { ok: 'Sector guardado', invalidar: ['/api/sectores'], alTerminar: () => setEdicion(null) });
+  const guardar = useAccion(() => api.post('/api/sectores', { ...edicion, espacio_id: edicion.espacio_id || null, responsable_default_id: edicion.responsable_default_id || null }), { ok: 'Sector guardado', invalidar: ['/api/sectores'], alTerminar: () => setEdicion(null) });
   return (
     <>
       <Encabezado titulo="Sectores del club" subtitulo="Natatorio, canchas, gimnasio, vestuarios, parque… con su responsable por defecto: los tickets nuevos se le asignan solos."

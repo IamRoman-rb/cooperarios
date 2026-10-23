@@ -18,7 +18,7 @@ export default function Asistencia() {
   const [motivo, setMotivo] = useState('');
   useEffect(() => setCambios({}), [grupoId, dia]);
   const guardar = useAccion(() => api.put('/api/profesor/asistencia', {
-    grupo_id: Number(grupoId), fecha: dia, registros: Object.entries(cambios).map(([id, presente]) => ({ inscripcion_id: Number(id), presente, justificacion: motivo })),
+    grupo_id: grupoId, fecha: dia, registros: Object.entries(cambios).map(([id, presente]) => ({ inscripcion_id: id, presente, justificacion: motivo })),
   }), { ok: 'Asistencia corregida', invalidar: ['/api/profesor'], alTerminar: () => { setCambios({}); setJustificar(false); setMotivo(''); } });
 
   return (

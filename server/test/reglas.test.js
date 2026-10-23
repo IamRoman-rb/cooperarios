@@ -106,7 +106,7 @@ describe('inscripción y pagos', () => {
     for (const id of cargoIds) expect(db.prepare('SELECT estado FROM cargos WHERE id = ?').pluck().get(id)).toBe('pagado');
   });
   it('los cargos no se editan: se corrigen con nota de crédito', () => {
-    expect(() => db.prepare('UPDATE cargos SET importe = 1 WHERE id = 1').run()).toThrow(/nota de crédito/);
+    expect(() => db.prepare('UPDATE cargos SET importe = 1 WHERE id = (SELECT id FROM cargos LIMIT 1)').run()).toThrow(/nota de crédito/);
   });
 });
 
@@ -114,7 +114,7 @@ describe('tickets de mantenimiento', () => {
   it('resolver exige foto del trabajo terminado y comentario', async () => {
     const socio = await como(app, 'socio');
     const creado = await socio.post('/api/tickets').field('titulo', 'Canilla rota').field('descripcion', 'Gotea la canilla del buffet')
-      .field('sector_id', '2').field('categoria', 'plomeria').field('prioridad', 'media');
+      .field('sector_id', db.prepare("SELECT id FROM sectores WHERE nombre = 'Vestuarios'").pluck().get()).field('categoria', 'plomeria').field('prioridad', 'media');
     expect(creado.status, JSON.stringify(creado.body)).toBe(201);
     const mant = await como(app, 'mantenimiento');
     expect((await mant.post(`/api/tickets/${creado.body.id}/iniciar`).send({})).status).toBe(200);
@@ -131,8 +131,8 @@ describe('tickets de mantenimiento', () => {
 describe('separación de funciones', () => {
   it('quien registra un gasto no lo aprueba; sobre el umbral aprueba la Directiva', async () => {
     const conta = await como(app, 'contabilidad');
-    const g = await conta.post('/api/finanzas/gastos').field('fecha', local().fecha).field('categoria_id', '1').field('descripcion', 'Compra grande')
-      .field('importe', '50000000').field('medio_pago', 'transferencia').field('caja_id', '2');
+    const g = await conta.post('/api/finanzas/gastos').field('fecha', local().fecha).field('categoria_id', db.prepare('SELECT id FROM categorias_gasto LIMIT 1').pluck().get()).field('descripcion', 'Compra grande')
+      .field('importe', '50000000').field('medio_pago', 'transferencia').field('caja_id', db.prepare("SELECT id FROM cajas WHERE tipo = 'banco'").pluck().get());
     expect(g.body.estado).toBe('pendiente_aprobacion');
     expect((await conta.post(`/api/finanzas/gastos/${g.body.id}/aprobar`).send({ aprobar: true })).status).toBe(403);
     const dir = await como(app, 'directiva');

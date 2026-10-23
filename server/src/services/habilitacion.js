@@ -39,13 +39,11 @@ function bloqueoVigente(personaId, actividadId, hoy) {
 /** ¿Tiene cargos impagos vencidos más allá de la gracia? */
 function deudaVencida(personaId, { concepto, inscripcionId }, graciaDias, hoy) {
   const limite = sumarDias(hoy, -graciaDias);
-  const filtro = inscripcionId
-    ? `c.origen_tipo = 'inscripcion' AND c.origen_id = ${Number(inscripcionId)}`
-    : `co.tipo = '${concepto}'`;
+  const filtro = inscripcionId ? `c.origen_tipo = 'inscripcion' AND c.origen_id = ?` : 'co.tipo = ?';
   return !!getDb().prepare(`
     SELECT 1 FROM cargos c JOIN conceptos co ON co.id = c.concepto_id
     WHERE c.persona_id = ? AND c.estado IN ('pendiente','parcial') AND c.vencimiento < ? AND ${filtro} LIMIT 1`)
-    .get(personaId, limite);
+    .get(personaId, limite, inscripcionId ?? concepto);
 }
 
 /** Estado del apto para una actividad: {requiere, vigente, bloqueante, estado, vence_en}. */

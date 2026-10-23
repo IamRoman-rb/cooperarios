@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getDb, ahora, enTransaccion } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { permiso, puede } from '../lib/rbac.js';
-import { validar, invalido, noEncontrado, prohibido, local, sumarMeses } from '../lib/util.js';
+import { validar, invalido, noEncontrado, prohibido, local, sumarMeses, zId } from '../lib/util.js';
 import { auditar, notificar } from '../lib/auditoria.js';
 import { exigirPeriodoAbierto } from '../services/cuenta.js';
 import { subida, rutaRelativa } from '../services/archivos.js';
@@ -70,7 +70,7 @@ r.get('/resumen', permiso('caja', 'leer', 'gestionar'), (_req, res) => {
 // ---------- Caja y bancos ----------
 r.get('/caja', permiso('caja', 'leer', 'gestionar'), (req, res) => {
   const db = getDb();
-  const cajaId = req.query.caja_id ? Number(req.query.caja_id) : null;
+  const cajaId = req.query.caja_id ? String(req.query.caja_id) : null;
   res.json({
     cajas: saldosCajas(),
     movimientos: db.prepare(`SELECT m.*, c.nombre AS caja FROM movimientos_caja m JOIN cajas c ON c.id = m.caja_id ${cajaId ? 'WHERE m.caja_id = ?' : ''}
@@ -81,7 +81,7 @@ r.get('/caja', permiso('caja', 'leer', 'gestionar'), (req, res) => {
 
 /** Arqueo: registra el conteo físico y, si hay diferencia, un ajuste con motivo. */
 r.post('/caja/arqueo', permiso('caja', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ caja_id: z.number().int(), contado: z.number().int().min(0), observacion: z.string().max(300).optional() }), req.body);
+  const d = validar(z.object({ caja_id: zId, contado: z.number().int().min(0), observacion: z.string().max(300).optional() }), req.body);
   const saldo = saldosCajas().find((c) => c.id === d.caja_id);
   if (!saldo) throw noEncontrado('Caja');
   const diferencia = d.contado - saldo.saldo;
@@ -94,7 +94,7 @@ r.post('/caja/arqueo', permiso('caja', 'gestionar'), (req, res) => {
 });
 
 r.post('/caja/movimientos', permiso('caja', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ caja_id: z.number().int(), caja_destino_id: z.number().int().optional(), importe: z.number().int().positive(), concepto: z.string().min(3) }), req.body);
+  const d = validar(z.object({ caja_id: zId, caja_destino_id: zId.optional(), importe: z.number().int().positive(), concepto: z.string().min(3) }), req.body);
   exigirPeriodoAbierto(ahora());
   enTransaccion(() => {
     if (d.caja_destino_id) {
@@ -121,12 +121,12 @@ r.get('/ingresos', permiso('ingresos', 'leer', 'gestionar'), (req, res) => {
 
 r.post('/ingresos', permiso('ingresos', 'gestionar'), subida('comprobantes', { maxMb: 5, campos: 1 }).single('comprobante'), (req, res) => {
   const d = validar(z.object({ origen: z.enum(['donacion', 'sponsor', 'evento', 'alquiler', 'otro']), descripcion: z.string().min(3), importe: z.coerce.number().int().positive(),
-    medio: z.enum(['efectivo', 'transferencia', 'mercadopago', 'billetera']), caja_id: z.coerce.number().int(), fecha: z.string().optional() }), req.body);
+    medio: z.enum(['efectivo', 'transferencia', 'mercadopago', 'billetera']), caja_id: zId, fecha: z.string().optional() }), req.body);
   const fecha = d.fecha ? new Date(d.fecha).toISOString() : ahora();
   exigirPeriodoAbierto(fecha);
   const id = enTransaccion(() => {
-    const nuevo = getDb().prepare(`INSERT INTO ingresos_varios (fecha, origen, descripcion, importe, medio, caja_id, comprobante_archivo, registrado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(fecha, d.origen, d.descripcion, d.importe, d.medio, d.caja_id, req.file ? rutaRelativa('comprobantes', req.file) : null, req.usuario.id).lastInsertRowid;
+    const nuevo = getDb().prepare(`INSERT INTO ingresos_varios (fecha, origen, descripcion, importe, medio, caja_id, comprobante_archivo, registrado_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`)
+      .get(fecha, d.origen, d.descripcion, d.importe, d.medio, d.caja_id, req.file ? rutaRelativa('comprobantes', req.file) : null, req.usuario.id).id;
     movimiento(d.caja_id, 'ingreso', d.importe, d.descripcion, 'ingreso_vario', nuevo, req.usuario.id);
     return nuevo;
   });
@@ -140,7 +140,7 @@ r.get('/gastos', permiso('gastos', 'leer', 'gestionar', 'aprobar', 'solicitar'),
   const f = [];
   const p = [];
   if (req.query.periodo) { f.push('substr(g.fecha,1,7) = ?'); p.push(req.query.periodo); }
-  if (req.query.categoria_id) { f.push('g.categoria_id = ?'); p.push(Number(req.query.categoria_id)); }
+  if (req.query.categoria_id) { f.push('g.categoria_id = ?'); p.push(String(req.query.categoria_id)); }
   if (req.query.estado) { f.push('g.estado = ?'); p.push(req.query.estado); }
   if (req.query.medio) { f.push('g.medio_pago = ?'); p.push(req.query.medio); }
   // Quien solo solicita ve sus propios pedidos.
@@ -162,17 +162,17 @@ r.get('/gastos', permiso('gastos', 'leer', 'gestionar', 'aprobar', 'solicitar'),
 });
 
 r.post('/gastos', permiso('gastos', 'gestionar', 'solicitar'), subida('gastos', { maxMb: 6, campos: 1 }).single('comprobante'), (req, res) => {
-  const d = validar(z.object({ fecha: z.string(), categoria_id: z.coerce.number().int(), descripcion: z.string().min(3).max(300), importe: z.coerce.number().int().positive(),
-    medio_pago: z.enum(['efectivo', 'transferencia', 'billetera', 'tarjeta']), caja_id: z.coerce.number().int().optional(), proveedor_id: z.coerce.number().int().optional(),
-    ticket_id: z.coerce.number().int().optional(), solicitud_compra_id: z.coerce.number().int().optional() }), req.body);
+  const d = validar(z.object({ fecha: z.string(), categoria_id: zId, descripcion: z.string().min(3).max(300), importe: z.coerce.number().int().positive(),
+    medio_pago: z.enum(['efectivo', 'transferencia', 'billetera', 'tarjeta']), caja_id: zId.optional(), proveedor_id: zId.optional(),
+    ticket_id: zId.optional(), solicitud_compra_id: zId.optional() }), req.body);
   exigirPeriodoAbierto(d.fecha);
   const gestiona = puede(req.usuario, 'gastos', 'gestionar');
   // Separación de funciones: lo que supera el umbral, o lo que pide alguien que no gestiona, queda para aprobar.
   const estado = !gestiona || d.importe > umbral() ? 'pendiente_aprobacion' : 'registrado';
   const id = enTransaccion(() => {
     const nuevo = getDb().prepare(`INSERT INTO gastos (fecha, categoria_id, descripcion, importe, medio_pago, caja_id, proveedor_id, comprobante_archivo, ticket_id, solicitud_compra_id, estado, registrado_por)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(d.fecha, d.categoria_id, d.descripcion, d.importe, d.medio_pago, d.caja_id ?? null, d.proveedor_id ?? null,
-      req.file ? rutaRelativa('gastos', req.file) : null, d.ticket_id ?? null, d.solicitud_compra_id ?? null, estado, req.usuario.id).lastInsertRowid;
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(d.fecha, d.categoria_id, d.descripcion, d.importe, d.medio_pago, d.caja_id ?? null, d.proveedor_id ?? null,
+      req.file ? rutaRelativa('gastos', req.file) : null, d.ticket_id ?? null, d.solicitud_compra_id ?? null, estado, req.usuario.id).id;
     // Un gasto en efectivo descuenta de la caja elegida al registrarse (o al aprobarse).
     if (estado === 'registrado' && d.caja_id) movimiento(d.caja_id, 'egreso', -d.importe, d.descripcion, 'gasto', nuevo, req.usuario.id);
     return nuevo;
@@ -223,7 +223,7 @@ r.post('/gastos/:id/anular', permiso('gastos', 'gestionar'), (req, res) => {
 
 r.post('/gastos/categorias', permiso('gastos', 'gestionar'), (req, res) => {
   const { nombre } = validar(z.object({ nombre: z.string().min(3) }), req.body);
-  res.status(201).json({ id: getDb().prepare('INSERT INTO categorias_gasto (nombre) VALUES (?)').run(nombre).lastInsertRowid });
+  res.status(201).json({ id: getDb().prepare('INSERT INTO categorias_gasto (nombre) VALUES (?) RETURNING id').get(nombre).id });
 });
 
 // ---------- Personal: empleados y remuneraciones ----------
@@ -253,8 +253,8 @@ r.get('/empleados/:id/remuneraciones', permiso('personal', 'leer', 'gestionar'),
 });
 
 r.post('/empleados', permiso('personal', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ id: z.number().int().optional(), persona: z.object({ nombre: z.string(), apellido: z.string(), dni: z.string(), email: z.string().optional(), telefono: z.string().optional() }).optional(),
-    persona_id: z.number().int().optional(), cargo: z.string().min(2), sector: z.string().min(2), tipo_vinculo: z.enum(['dependencia', 'monotributo', 'otro']),
+  const d = validar(z.object({ id: zId.optional(), persona: z.object({ nombre: z.string(), apellido: z.string(), dni: z.string(), email: z.string().optional(), telefono: z.string().optional() }).optional(),
+    persona_id: zId.optional(), cargo: z.string().min(2), sector: z.string().min(2), tipo_vinculo: z.enum(['dependencia', 'monotributo', 'otro']),
     fecha_alta: z.string(), fecha_baja: z.string().nullable().optional(), forma_pago: z.enum(['efectivo', 'transferencia']), remuneracion_base: z.number().int().min(0) }), req.body);
   const db = getDb();
   const id = enTransaccion(() => {
@@ -269,11 +269,11 @@ r.post('/empleados', permiso('personal', 'gestionar'), (req, res) => {
     let personaId = d.persona_id;
     if (!personaId && d.persona) {
       personaId = db.prepare('SELECT id FROM personas WHERE dni = ?').pluck().get(d.persona.dni)
-        ?? db.prepare(`INSERT INTO personas (dni, nombre, apellido, email, telefono, tipo) VALUES (?, ?, ?, ?, ?, 'empleado')`).run(d.persona.dni, d.persona.nombre, d.persona.apellido, d.persona.email ?? null, d.persona.telefono ?? null).lastInsertRowid;
+        ?? db.prepare(`INSERT INTO personas (dni, nombre, apellido, email, telefono, tipo) VALUES (?, ?, ?, ?, ?, 'empleado') RETURNING id`).get(d.persona.dni, d.persona.nombre, d.persona.apellido, d.persona.email ?? null, d.persona.telefono ?? null).id;
     }
     if (!personaId) throw invalido('Indicá la persona');
-    const nuevo = db.prepare('INSERT INTO empleados (persona_id, cargo, sector, tipo_vinculo, fecha_alta, forma_pago, remuneracion_base) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(personaId, d.cargo, d.sector, d.tipo_vinculo, d.fecha_alta, d.forma_pago, d.remuneracion_base).lastInsertRowid;
+    const nuevo = db.prepare('INSERT INTO empleados (persona_id, cargo, sector, tipo_vinculo, fecha_alta, forma_pago, remuneracion_base) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id')
+      .get(personaId, d.cargo, d.sector, d.tipo_vinculo, d.fecha_alta, d.forma_pago, d.remuneracion_base).id;
     auditar(req, 'alta_empleado', 'empleados', nuevo, null, d);
     return nuevo;
   });
@@ -299,7 +299,7 @@ r.post('/remuneraciones/liquidar', permiso('personal', 'gestionar'), (req, res) 
 });
 
 r.post('/remuneraciones/:id/pagar', permiso('personal', 'gestionar'), (req, res) => {
-  const { caja_id } = validar(z.object({ caja_id: z.number().int() }), req.body);
+  const { caja_id } = validar(z.object({ caja_id: zId }), req.body);
   const db = getDb();
   const rem = db.prepare('SELECT r.*, p.apellido FROM remuneraciones r JOIN empleados e ON e.id = r.empleado_id JOIN personas p ON p.id = e.persona_id WHERE r.id = ?').get(req.params.id);
   if (!rem) throw noEncontrado('Liquidación');
@@ -318,8 +318,8 @@ r.post('/remuneraciones/:id/ajuste', permiso('personal', 'gestionar'), (req, res
   const db = getDb();
   const rem = db.prepare('SELECT * FROM remuneraciones WHERE id = ?').get(req.params.id);
   if (!rem) throw noEncontrado('Liquidación');
-  const id = db.prepare('INSERT INTO remuneraciones (empleado_id, periodo, bruto, descuentos, neto, medio_pago, es_ajuste) VALUES (?, ?, ?, 0, ?, ?, 1)')
-    .run(rem.empleado_id, local().periodo, d.importe, d.importe, rem.medio_pago).lastInsertRowid;
+  const id = db.prepare('INSERT INTO remuneraciones (empleado_id, periodo, bruto, descuentos, neto, medio_pago, es_ajuste) VALUES (?, ?, ?, 0, ?, ?, 1) RETURNING id')
+    .get(rem.empleado_id, local().periodo, d.importe, d.importe, rem.medio_pago).id;
   auditar(req, 'ajuste_sueldo', 'remuneraciones', id, null, { ...d, original: rem.id });
   res.status(201).json({ id });
 });
@@ -334,12 +334,12 @@ r.get('/proveedores', permiso('compras', 'leer', 'gestionar', 'aprobar'), (_req,
 });
 
 r.post('/proveedores', permiso('compras', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ id: z.number().int().optional(), razon_social: z.string().min(2), cuit: z.string().regex(/^\d{2}-\d{8}-\d$/, 'CUIT con formato 30-12345678-9').optional(),
+  const d = validar(z.object({ id: zId.optional(), razon_social: z.string().min(2), cuit: z.string().regex(/^\d{2}-\d{8}-\d$/, 'CUIT con formato 30-12345678-9').optional(),
     rubro: z.string().optional(), contacto: z.string().optional(), condicion_pago: z.string().optional() }), req.body);
   const db = getDb();
   const vals = [d.razon_social, d.cuit ?? null, d.rubro ?? null, d.contacto ?? null, d.condicion_pago ?? null];
   const id = d.id ? (db.prepare('UPDATE proveedores SET razon_social = ?, cuit = ?, rubro = ?, contacto = ?, condicion_pago = ? WHERE id = ?').run(...vals, d.id), d.id)
-    : db.prepare('INSERT INTO proveedores (razon_social, cuit, rubro, contacto, condicion_pago) VALUES (?, ?, ?, ?, ?)').run(...vals).lastInsertRowid;
+    : db.prepare('INSERT INTO proveedores (razon_social, cuit, rubro, contacto, condicion_pago) VALUES (?, ?, ?, ?, ?) RETURNING id').get(...vals).id;
   res.json({ id });
 });
 
@@ -365,9 +365,9 @@ r.get('/facturas', permiso('compras', 'leer', 'gestionar', 'aprobar'), (_req, re
 });
 
 r.post('/facturas', permiso('compras', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ proveedor_id: z.number().int(), numero: z.string().min(3), fecha: z.string(), vence: z.string(), total: z.number().int().positive() }), req.body);
-  const id = getDb().prepare('INSERT INTO facturas_proveedor (proveedor_id, numero, fecha, vence, total, cargada_por) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(d.proveedor_id, d.numero, d.fecha, d.vence, d.total, req.usuario.id).lastInsertRowid;
+  const d = validar(z.object({ proveedor_id: zId, numero: z.string().min(3), fecha: z.string(), vence: z.string(), total: z.number().int().positive() }), req.body);
+  const id = getDb().prepare('INSERT INTO facturas_proveedor (proveedor_id, numero, fecha, vence, total, cargada_por) VALUES (?, ?, ?, ?, ?, ?) RETURNING id')
+    .get(d.proveedor_id, d.numero, d.fecha, d.vence, d.total, req.usuario.id).id;
   auditar(req, 'cargar_factura', 'facturas_proveedor', id, null, d);
   if (d.total > umbral()) notificar({ rol: 'directiva', tipo: 'aprobacion', titulo: `Factura sobre el umbral para autorizar: ${d.numero}`, referencia: '/directiva/aprobaciones' });
   res.status(201).json({ id });
@@ -387,7 +387,7 @@ r.post('/facturas/:id/autorizar', permiso('compras', 'gestionar', 'aprobar'), (r
 });
 
 r.post('/facturas/:id/pagar', permiso('compras', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ caja_id: z.number().int(), importe: z.number().int().positive() }), req.body);
+  const d = validar(z.object({ caja_id: zId, importe: z.number().int().positive() }), req.body);
   const db = getDb();
   const f = db.prepare('SELECT f.*, p.razon_social FROM facturas_proveedor f JOIN proveedores p ON p.id = f.proveedor_id WHERE f.id = ?').get(req.params.id);
   if (!f) throw noEncontrado('Factura');
@@ -395,7 +395,7 @@ r.post('/facturas/:id/pagar', permiso('compras', 'gestionar'), (req, res) => {
   const pagado = db.prepare('SELECT COALESCE(SUM(importe),0) FROM pagos_proveedor WHERE factura_id = ?').pluck().get(f.id);
   if (pagado + d.importe > f.total) throw invalido('El pago supera el saldo de la factura');
   enTransaccion(() => {
-    const id = db.prepare('INSERT INTO pagos_proveedor (factura_id, caja_id, fecha, importe) VALUES (?, ?, ?, ?)').run(f.id, d.caja_id, local().fecha, d.importe).lastInsertRowid;
+    const id = db.prepare('INSERT INTO pagos_proveedor (factura_id, caja_id, fecha, importe) VALUES (?, ?, ?, ?) RETURNING id').get(f.id, d.caja_id, local().fecha, d.importe).id;
     movimiento(d.caja_id, 'egreso', -d.importe, `Pago ${f.razon_social} ${f.numero}`, 'pago_proveedor', id, req.usuario.id);
     if (pagado + d.importe === f.total) db.prepare(`UPDATE facturas_proveedor SET estado = 'pagada' WHERE id = ?`).run(f.id);
   });
@@ -425,10 +425,10 @@ r.get('/presupuesto', permiso('presupuesto', 'leer', 'gestionar', 'aprobar', 'le
 });
 
 r.post('/presupuesto', permiso('presupuesto', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ id: z.number().int().optional(), anio: z.number().int(), rubro: z.string().min(2), actividad_id: z.number().int().nullable().optional(), tipo: z.enum(['ingreso', 'egreso']), monto: z.number().int().min(0) }), req.body);
+  const d = validar(z.object({ id: zId.optional(), anio: z.number().int(), rubro: z.string().min(2), actividad_id: zId.nullable().optional(), tipo: z.enum(['ingreso', 'egreso']), monto: z.number().int().min(0) }), req.body);
   const db = getDb();
   const id = d.id ? (db.prepare('UPDATE presupuestos SET anio = ?, rubro = ?, actividad_id = ?, tipo = ?, monto = ? WHERE id = ?').run(d.anio, d.rubro, d.actividad_id ?? null, d.tipo, d.monto, d.id), d.id)
-    : db.prepare('INSERT INTO presupuestos (anio, rubro, actividad_id, tipo, monto) VALUES (?, ?, ?, ?, ?)').run(d.anio, d.rubro, d.actividad_id ?? null, d.tipo, d.monto).lastInsertRowid;
+    : db.prepare('INSERT INTO presupuestos (anio, rubro, actividad_id, tipo, monto) VALUES (?, ?, ?, ?, ?) RETURNING id').get(d.anio, d.rubro, d.actividad_id ?? null, d.tipo, d.monto).id;
   auditar(req, 'presupuesto', 'presupuestos', id, null, d);
   res.json({ id });
 });
@@ -475,7 +475,7 @@ r.post('/honorarios/:id/:accion', (req, res) => {
   } else {
     if (!puede(req.usuario, 'honorarios', 'gestionar')) throw prohibido();
     if (h.estado !== 'autorizado') throw invalido('Primero debe autorizarlo la Comisión Directiva');
-    const { caja_id } = validar(z.object({ caja_id: z.number().int() }), req.body);
+    const { caja_id } = validar(z.object({ caja_id: zId }), req.body);
     enTransaccion(() => {
       db.prepare(`UPDATE honorarios SET estado = 'pagado' WHERE id = ?`).run(h.id);
       movimiento(caja_id, 'egreso', -h.monto, `Honorarios ${h.periodo} — ${h.apellido}`, 'honorario', h.id, req.usuario.id);

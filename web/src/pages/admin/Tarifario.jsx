@@ -13,7 +13,7 @@ export default function Tarifario() {
   const [arancel, setArancel] = useState(null);
   const [descuento, setDescuento] = useState(null);
   const [cuota, setCuota] = useState(null);
-  const nuevoArancel = useAccion(() => api.post('/api/actividades/tarifario/aranceles', { ...arancel, actividad_id: Number(arancel.actividad_id), frecuencia: Number(arancel.frecuencia), valor_socio: aCentavos(arancel.valor_socio), valor_no_socio: aCentavos(arancel.valor_no_socio), vigente_hasta: arancel.vigente_hasta || null }), { ok: 'Nuevo valor vigente', invalidar: ['/api/actividades'], alTerminar: () => setArancel(null) });
+  const nuevoArancel = useAccion(() => api.post('/api/actividades/tarifario/aranceles', { ...arancel, actividad_id: arancel.actividad_id, frecuencia: Number(arancel.frecuencia), valor_socio: aCentavos(arancel.valor_socio), valor_no_socio: aCentavos(arancel.valor_no_socio), vigente_hasta: arancel.vigente_hasta || null }), { ok: 'Nuevo valor vigente', invalidar: ['/api/actividades'], alTerminar: () => setArancel(null) });
   const guardarDescuento = useAccion(() => api.post('/api/actividades/tarifario/descuentos', { ...descuento, valor: descuento.tipo === 'monto' ? aCentavos(descuento.valor) : Number(descuento.valor) }), { ok: 'Descuento guardado', invalidar: ['/api/actividades'], alTerminar: () => setDescuento(null) });
   const guardarCuota = useAccion(() => api.put(`/api/actividades/tarifario/categorias/${cuota.id}`, { valor: aCentavos(cuota.valor) }), { ok: 'Cuota actualizada', invalidar: ['/api/actividades', '/api/padron'], alTerminar: () => setCuota(null) });
   return (

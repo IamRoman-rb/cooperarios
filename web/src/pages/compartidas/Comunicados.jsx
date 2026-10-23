@@ -15,7 +15,7 @@ export default function Comunicados({ alcance = 'todos' }) {
   const [form, setForm] = useState({ titulo: '', cuerpo: '', tipo: alcance === 'todos' ? 'todos' : alcance, id: '', categoria: 'institucional', publico: false });
   const enviar = useAccion(() => api.post('/api/comunicados', {
     titulo: form.titulo, cuerpo: form.cuerpo, categoria: alcance === 'todos' ? form.categoria : 'actividad', publico: form.publico,
-    audiencia: form.tipo === 'todos' ? { tipo: 'todos' } : { tipo: form.tipo, id: Number(form.id || opcionesDe(form.tipo)[0]?.value) },
+    audiencia: form.tipo === 'todos' ? { tipo: 'todos' } : { tipo: form.tipo, id: form.id || opcionesDe(form.tipo)[0]?.value },
   }), { ok: (r) => `Comunicado enviado a ${r.destinatarios} destinatarios`, invalidar: ['/api/comunicados', '/api/profesor'], alTerminar: () => setForm({ ...form, titulo: '', cuerpo: '' }) });
 
   function opcionesDe(tipo) {
