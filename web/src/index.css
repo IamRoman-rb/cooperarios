@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; }
+  body { min-height: 100dvh; overscroll-behavior-y: none; font-family: Inter, system-ui, sans-serif; }
+  :focus-visible { outline: 2px solid #b91c1c; outline-offset: 2px; }
+}
+
+@layer components {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    font-size: 20px;
+    line-height: 1;
+    user-select: none;
+  }
+  .icono-relleno { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .tarjeta { @apply bg-surface-container-lowest rounded-xl shadow-n1 border border-surface-container; }
+  .entrada {
+    @apply w-full h-11 px-3 rounded-xl bg-surface-container-lowest border border-[#d1d5db] text-body-md text-on-surface placeholder:text-secondary/70
+      focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container transition-shadow;
+  }
+  .etiqueta { @apply font-label-md text-label-md uppercase tracking-wider text-secondary; }
+  .pb-seguro { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pt-seguro { padding-top: env(safe-area-inset-top, 0px); }
+  .tabla-zebra tbody tr:nth-child(even) { @apply bg-surface; }
+  .sin-scroll::-webkit-scrollbar { display: none; }
+  .sin-scroll { scrollbar-width: none; }
+}
+
+@media print {
+  .no-imprimir { display: none !important; }
+  body { background: white; }
+}

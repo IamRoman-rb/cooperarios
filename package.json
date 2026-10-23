@@ -1,0 +1,25 @@
+{
+  "name": "club-los-cooperarios",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Plataforma digital integral del Club Los Cooperarios (Quilmes Oeste)",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c red,blue \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm run dev --workspace server",
+    "dev:web": "npm run dev --workspace web",
+    "db:reset": "npm run db:reset --workspace server",
+    "build": "npm run build --workspace web",
+    "start": "npm run start --workspace server",
+    "test": "npm run test --workspace server"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

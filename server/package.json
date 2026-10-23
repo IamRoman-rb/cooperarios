@@ -1,0 +1,33 @@
+{
+  "name": "@cooperarios/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=../.env src/index.js",
+    "start": "node --env-file-if-exists=../.env src/index.js",
+    "db:migrate": "node --env-file-if-exists=../.env src/db/migrate.js",
+    "db:seed": "node --env-file-if-exists=../.env src/db/seed.js",
+    "db:reset": "node --env-file-if-exists=../.env src/db/seed.js --reset",
+    "test": "vitest run",
+    "alta-inicial": "node --env-file-if-exists=../.env src/db/alta-inicial.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.4.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "node-cron": "^3.0.3",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.0",
+    "vitest": "^3.2.4"
+  }
+}
