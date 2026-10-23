@@ -155,3 +155,40 @@ describe('separación de funciones', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('alta aprobada: cuenta del socio', () => {
+  const solicitar = (email, dni = '40111222') => request(app).post('/api/publico/solicitud-alta').set('x-requested-with', 'cooperarios').send({
+    nombre: 'Julia', apellido: 'Paz', dni, fecha_nacimiento: '1990-05-10', email, telefono: '1155550000', categoria: 'Activo', acepta_datos: true,
+  });
+  const aprobar = async (id) => (await como(app, 'admin')).post(`/api/padron/solicitudes/${id}/resolver`).send({ estado: 'aprobada' });
+
+  it('crea el usuario con rol socio y un enlace para elegir la contraseña', async () => {
+    const sol = await solicitar('julia.paz@correo.com');
+    const res = await aprobar(sol.body.id);
+    expect(res.status).toBe(200);
+    const { cuenta } = res.body.resultado;
+    expect(cuenta).toMatchObject({ creada: true, email: 'julia.paz@correo.com', correo_enviado: false });
+    expect(cuenta.enlace_dev).toContain('/login?activar=');
+    const u = db.prepare('SELECT * FROM usuarios WHERE email = ?').get('julia.paz@correo.com');
+    expect(u.persona_id).toBe(res.body.resultado.persona_id);
+    expect(db.prepare('SELECT r.codigo FROM usuario_roles ur JOIN roles r ON r.id = ur.rol_id WHERE ur.usuario_id = ?').pluck().all(u.id)).toEqual(['socio']);
+
+    const token = new URL(cuenta.enlace_dev).searchParams.get('activar');
+    const cliente = request.agent(app);
+    const elegir = () => cliente.post('/api/auth/restablecer').set('x-requested-with', 'cooperarios').send({ token, password: 'ClaveNueva2026' });
+    expect((await elegir()).status).toBe(200);
+    expect((await elegir()).status).toBe(400); // el enlace sirve una sola vez
+    const login = await cliente.post('/api/auth/login').set('x-requested-with', 'cooperarios').send({ email: 'julia.paz@correo.com', password: 'ClaveNueva2026' });
+    expect(login.status).toBe(200);
+    expect(login.body.usuario.roles.map((x) => x.codigo)).toEqual(['socio']);
+  });
+
+  it('si el email ya es de otra cuenta, aprueba el alta y avisa que falta la cuenta', async () => {
+    const sol = await solicitar('admin@demo.coop', '40111333');
+    const res = await aprobar(sol.body.id);
+    expect(res.status).toBe(200);
+    expect(res.body.resultado.nro_socio).toBeGreaterThan(0);
+    expect(res.body.resultado.cuenta.creada).toBe(false);
+    expect(res.body.resultado.cuenta.aviso).toContain('ya lo usa otra cuenta');
+  });
+});

@@ -12,8 +12,9 @@ export default function Solicitudes() {
   const q = useDatos(`/api/padron/solicitudes?estado=${estado}`);
   const [abierta, setAbierta] = useState(null);
   const [respuesta, setRespuesta] = useState('');
+  const [cuenta, setCuenta] = useState(null);
   const resolver = useAccion(({ id, ...d }) => api.post(`/api/padron/solicitudes/${id}/resolver`, d), {
-    ok: (r) => (r.resultado?.nro_socio ? `Alta aprobada: socio N° ${r.resultado.nro_socio}` : 'Solicitud resuelta'), invalidar: ['/api/padron'], alTerminar: () => { setAbierta(null); setRespuesta(''); },
+    ok: (r) => (r.resultado?.nro_socio ? `Alta aprobada: socio N° ${r.resultado.nro_socio}` : 'Solicitud resuelta'), invalidar: ['/api/padron'], alTerminar: (r) => { setAbierta(null); setRespuesta(''); setCuenta(r.resultado?.cuenta ? { ...r.resultado.cuenta, nro: r.resultado.nro_socio } : null); },
   });
   const tramite = (s) => ['alta', 'alta_familiar', 'baja', 'cambio_categoria'].includes(s.tipo);
   return (
@@ -53,9 +54,25 @@ export default function Solicitudes() {
               <div><p className="etiqueta mb-1">Grupo familiar declarado</p>{abierta.datos.familiares.map((f, i) => <p key={i} className="text-body-sm">{f.nombre} {f.apellido} · DNI {f.dni} · {f.parentesco}</p>)}<p className="text-body-sm text-secondary mt-1">Los integrantes se dan de alta individualmente desde Alta de socio.</p></div>
             )}
             {abierta.datos.ya_registrado && <Aviso tono="alerta">El DNI ya existe en el padrón: revisá antes de aprobar.</Aviso>}
-            {abierta.tipo === 'alta' && <Aviso tono="info">Al aprobar se crea el socio con la categoría por edad, su primera cuota y el consentimiento versión {abierta.datos.consentimiento_version}.</Aviso>}
+            {abierta.tipo === 'alta' && <Aviso tono="info">Al aprobar se crea el socio con la categoría por edad, su primera cuota y el consentimiento versión {abierta.datos.consentimiento_version}. También se crea su cuenta con el rol socio y se le envía a {abierta.datos.email} un enlace para elegir la contraseña.</Aviso>}
             {abierta.respuesta && <Aviso tono="info" titulo="Respuesta">{abierta.respuesta}</Aviso>}
             {!['aprobada', 'rechazada', 'resuelta'].includes(abierta.estado) && <Campo etiqueta="Respuesta al socio"><Area value={respuesta} onChange={(e) => setRespuesta(e.target.value)} /></Campo>}
+          </div>
+        )}
+      </Modal>
+      <Modal abierto={!!cuenta} titulo={cuenta ? `Socio N° ${cuenta.nro}: cuenta de ingreso` : ''} onCerrar={() => setCuenta(null)}
+        pie={<Boton onClick={() => setCuenta(null)}>Entendido</Boton>}>
+        {cuenta && (
+          <div className="space-y-space-md">
+            {!cuenta.creada && <Aviso tono="alerta">{cuenta.aviso}</Aviso>}
+            {cuenta.creada && cuenta.correo_enviado && <Aviso tono="exito" titulo="Cuenta creada">Le enviamos a {cuenta.email} el enlace para elegir su contraseña. Vale 7 días.</Aviso>}
+            {cuenta.creada && !cuenta.correo_enviado && (
+              <Aviso tono="alerta" titulo="Cuenta creada, pero el correo no salió">
+                {cuenta.enlace_dev
+                  ? <>El correo no está configurado (modo de prueba). Este es el enlace que le llegaría a {cuenta.email}: <a className="underline break-all" href={cuenta.enlace_dev}>{cuenta.enlace_dev}</a></>
+                  : <>Revisá la configuración de correo en Sistemas. Mientras tanto, el socio puede pedir un enlace con «Olvidé mi contraseña» usando {cuenta.email}.</>}
+              </Aviso>
+            )}
           </div>
         )}
       </Modal>

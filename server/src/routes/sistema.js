@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getDb, ahora, backup, enTransaccion } from '../db/index.js';
@@ -47,7 +48,7 @@ r.get('/integraciones', permiso('sistema', 'gestionar'), (_req, res) => {
   res.json({
     mercado_pago: { modo: config.mercadoPago.simulado ? 'simulado' : 'producción', webhook: '/api/pagos/webhook/mercadopago',
       ultimas: db.prepare(`SELECT estado, COUNT(*) AS n, MAX(creado_en) AS ultima FROM pagos_online GROUP BY estado`).all() },
-    correo: { configurado: !!process.env.SMTP_HOST, servidor: process.env.SMTP_HOST ?? null },
+    correo: { configurado: !!config.smtp.host, servidor: config.smtp.host || null },
     notificaciones: db.prepare(`SELECT tipo, COUNT(*) AS n, SUM(leida_en IS NOT NULL) AS leidas FROM notificaciones GROUP BY tipo ORDER BY n DESC`).all(),
     arca: { estado: 'Fase 5 (facturación electrónica)' },
   });
@@ -177,7 +178,7 @@ function asignarRoles(usuarioId, roles) {
 
 r.post('/usuarios', permiso('usuarios', 'gestionar'), async (req, res) => {
   const d = validar(usuarioSchema, req.body);
-  const password = d.password ?? `Coop${Math.random().toString(36).slice(2, 8)}${Date.now() % 1000}`;
+  const password = d.password ?? crypto.randomBytes(9).toString('base64url');
   const hash = await hashPassword(password);
   const id = enTransaccion(() => {
     const db = getDb();

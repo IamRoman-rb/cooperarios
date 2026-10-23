@@ -29,5 +29,12 @@ export const config = {
     // Sin token se usa el modo simulado: el pago se aprueba desde la propia plataforma.
     simulado: !env.MP_ACCESS_TOKEN,
   },
+  smtp: {
+    host: env.SMTP_HOST ?? '',
+    puerto: Number(env.SMTP_PORT ?? 587),
+    usuario: env.SMTP_USER ?? '',
+    clave: env.SMTP_PASS ?? '',
+    remitente: env.SMTP_FROM ?? 'Club Los Cooperarios <no-responder@cooperariosclub.com.ar>',
+  },
   zonaHoraria: 'America/Argentina/Buenos_Aires',
 };

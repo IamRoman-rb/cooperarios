@@ -17,7 +17,9 @@ const DEMO = ['socio', 'profesor', 'admin', 'contabilidad', 'directiva', 'subcom
 
 export default function Login() {
   const [params] = useSearchParams();
-  const token = params.get('restablecer');
+  // "activar" llega en el correo de alta aprobada; "restablecer", en el de contraseña olvidada.
+  const activar = params.get('activar');
+  const token = params.get('restablecer') ?? activar;
   const [modo, setModo] = useState(token ? 'restablecer' : 'ingresar');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,7 +57,7 @@ export default function Login() {
         setMensaje(r.enlace_dev ? { texto: 'Modo de prueba: este es el enlace que llegaría por correo.', enlace: r.enlace_dev } : { texto: 'Si el email está registrado, te enviamos un enlace para restablecer la contraseña.' });
       } else if (modo === 'restablecer') {
         await api.post('/api/auth/restablecer', { token, password });
-        setMensaje({ texto: 'Contraseña actualizada. Ya podés ingresar.' });
+        setMensaje({ texto: activar ? 'Tu cuenta está activa. Ingresá con tu email y la contraseña que elegiste.' : 'Contraseña actualizada. Ya podés ingresar.' });
         setModo('ingresar');
         navegar('/login', { replace: true });
       }
@@ -66,7 +68,7 @@ export default function Login() {
     }
   }
 
-  const titulos = { ingresar: 'Ingresá a tu cuenta', mfa: 'Verificación en dos pasos', recuperar: 'Recuperar contraseña', restablecer: 'Nueva contraseña' };
+  const titulos = { ingresar: 'Ingresá a tu cuenta', mfa: 'Verificación en dos pasos', recuperar: 'Recuperar contraseña', restablecer: activar ? 'Elegí tu contraseña' : 'Nueva contraseña' };
 
   return (
     <div className="max-w-md mx-auto px-gutter-sm pt-space-xl pb-space-xl">
@@ -76,7 +78,7 @@ export default function Login() {
           <span className="w-12 h-12 rounded-xl bg-primary-container text-on-primary flex items-center justify-center mb-4"><Icono n={modo === 'mfa' ? 'phonelink_lock' : 'lock'} /></span>
           <h1 className="text-headline-md">{titulos[modo]}</h1>
           <p className="text-body-sm text-secondary mt-1 mb-space-lg">
-            {modo === 'mfa' ? 'Ingresá el código de 6 dígitos de tu aplicación autenticadora.' : 'Socios, profesores y personal del club.'}
+            {modo === 'mfa' ? 'Ingresá el código de 6 dígitos de tu aplicación autenticadora.' : modo === 'restablecer' && activar ? 'Tu alta como socio fue aprobada. Elegí la contraseña para ingresar a la plataforma.' : 'Socios, profesores y personal del club.'}
           </p>
           {mensaje && (
             <Aviso tono="exito" titulo={mensaje.texto}>

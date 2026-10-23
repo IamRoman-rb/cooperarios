@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { getDb, ahora } from '../db/index.js';
 import { config } from '../config.js';
 import { HttpError } from './util.js';
@@ -12,6 +13,18 @@ export const ROLES_MFA = ['admin', 'contabilidad', 'directiva', 'medico'];
 
 export const hashPassword = (plano) => bcrypt.hash(plano, 11);
 export const sha256 = (texto) => crypto.createHash('sha256').update(texto).digest('hex');
+
+/** Hash de una contraseña aleatoria que nadie conoce: la cuenta solo se usa tras elegir una con el enlace. */
+export const hashSinUso = () => hashPassword(crypto.randomBytes(32).toString('hex'));
+
+// Enlaces para elegir o restablecer la contraseña: firmados con el hash actual, dejan de valer al cambiarla.
+export const secretoContrasena = (u) => `${config.sessionSecret}:${u.password_hash}`;
+
+/** URL de ingreso con el token; `modo` es "restablecer" (olvido) o "activar" (cuenta nueva). */
+export function enlaceContrasena(usuario, { modo = 'restablecer', vence = '30m' } = {}) {
+  const token = jwt.sign({ u: usuario.id }, secretoContrasena(usuario), { expiresIn: vence });
+  return `${config.origenWeb}/login?${modo}=${token}`;
+}
 
 /** Carga usuario con persona, roles y permisos efectivos. */
 export function cargarUsuario(usuarioId) {

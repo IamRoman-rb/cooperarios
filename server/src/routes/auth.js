@@ -6,8 +6,9 @@ import { getDb, ahora } from '../db/index.js';
 import { config } from '../config.js';
 import {
   COOKIE, ROLES_MFA, verificarCredenciales, crearSesion, opcionesCookie, cargarUsuario, cerrarSesion,
-  requiereSesion, generarSecretoTotp, verificarTotp, hashPassword,
+  requiereSesion, generarSecretoTotp, verificarTotp, hashPassword, secretoContrasena, enlaceContrasena,
 } from '../lib/auth.js';
+import { enviarCorreo } from '../services/correo.js';
 import { validar, HttpError } from '../lib/util.js';
 import { auditar } from '../lib/auditoria.js';
 
@@ -61,17 +62,20 @@ r.get('/me', (req, res) => {
   res.json({ usuario: perfilSesion(req.usuario) });
 });
 
-// Recuperación de contraseña: token firmado que caduca en 30 minutos y se invalida al cambiar la contraseña.
-const secretoReset = (u) => `${config.sessionSecret}:${u.password_hash}`;
-
-r.post('/recuperar', limite, (req, res) => {
+// Recuperación de contraseña: el enlace caduca en 30 minutos y se invalida al cambiar la contraseña.
+r.post('/recuperar', limite, async (req, res) => {
   const { email } = validar(z.object({ email: z.string().email() }), req.body);
   const u = getDb().prepare(`SELECT * FROM usuarios WHERE email = ? AND estado = 'activo'`).get(email);
   if (u) {
-    const token = jwt.sign({ u: u.id }, secretoReset(u), { expiresIn: '30m' });
-    const enlace = `${config.origenWeb}/login?restablecer=${token}`;
-    // El envío de correo (SMTP institucional) se configura en producción; en desarrollo se muestra en consola.
-    console.log(`[recuperación] ${email}: ${enlace}`);
+    const enlace = enlaceContrasena(u);
+    await enviarCorreo({
+      para: email,
+      asunto: 'Restablecer tu contraseña · Club Los Cooperarios',
+      texto: `Para elegir una contraseña nueva, abrí este enlace (vale 30 minutos):
+${enlace}
+
+Si no lo pediste, ignorá este correo.`,
+    });
     if (!config.produccion) return res.json({ ok: true, enlace_dev: enlace });
   }
   res.json({ ok: true });
@@ -86,7 +90,7 @@ r.post('/restablecer', limite, async (req, res) => {
   const u = sinVerificar?.u && getDb().prepare('SELECT * FROM usuarios WHERE id = ?').get(sinVerificar.u);
   try {
     if (!u) throw new Error();
-    jwt.verify(token, secretoReset(u));
+    jwt.verify(token, secretoContrasena(u));
   } catch {
     throw new HttpError(400, 'El enlace venció o ya fue usado. Pedí uno nuevo.');
   }

@@ -91,7 +91,19 @@ Configurar `MP_ACCESS_TOKEN` y `MP_WEBHOOK_SECRET` y registrar la URL de notific
 `https://cooperariosclub.com.ar/api/pagos/webhook/mercadopago`. Las notificaciones se verifican con la firma
 `x-signature` y el pago se consulta a la API antes de acreditarlo.
 
-## 7. Identificadores (UUID)
+## 7. Correo
+
+Configurar `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` y `SMTP_FROM` con la cuenta institucional. Se usa para:
+
+- **Alta aprobada:** al aprobar una solicitud de alta se crea el usuario del socio (rol socio, con el email de la
+  solicitud) y le llega un enlace para elegir su contraseña, válido 7 días. Nadie conoce ni entrega contraseñas.
+  Si el email ya es de otra cuenta, o el socio es menor, la bandeja lo avisa y la cuenta se crea desde Usuarios y roles.
+- **Contraseña olvidada:** enlace válido 30 minutos. También sirve si el enlace de alta venció.
+
+Sin SMTP los correos no salen: se escriben en la consola del servidor y, fuera de producción, la bandeja muestra el enlace.
+El estado se ve en **Sistemas → Integraciones**.
+
+## 8. Identificadores (UUID)
 
 - Todos los registros usan como id un **UUID v7** en texto (por ejemplo `01a1689d-0906-7236-8e0a-08e068f92e6e`).
   Son ordenables por fecha de creación, así que ordenar por id sigue dando el orden de alta.
@@ -103,7 +115,7 @@ Configurar `MP_ACCESS_TOKEN` y `MP_WEBHOOK_SECRET` y registrar la URL de notific
 - Las bases de desarrollo creadas antes de este cambio se detectan al iniciar: corré `npm run db:reset` con el
   servidor detenido.
 
-## 8. Mantenimiento
+## 9. Mantenimiento
 
 - `npm audit` y actualización de dependencias mensual, con backup previo.
 - Las migraciones nuevas se agregan en `server/src/db/migrations/` con un número correlativo y se aplican al iniciar.

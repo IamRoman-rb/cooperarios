@@ -2,13 +2,15 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { getDb, ahora, enTransaccion } from '../db/index.js';
-import { requiereSesion } from '../lib/auth.js';
+import { requiereSesion, hashSinUso, enlaceContrasena } from '../lib/auth.js';
 import { permiso, puede, ambitoActividades } from '../lib/rbac.js';
 import { validar, invalido, noEncontrado, local, edad, json, paginar, marcas, zId } from '../lib/util.js';
 import { auditar, notificar, usuarioDePersona } from '../lib/auditoria.js';
 import { categoriaPorEdad, cuotaSocial } from '../services/precios.js';
 import { resumenCuenta, crearCargo, cargosDe } from '../services/cuenta.js';
 import { estadoPorActividad } from '../services/habilitacion.js';
+import { enviarCorreo } from '../services/correo.js';
+import { config } from '../config.js';
 
 const r = Router();
 r.use(requiereSesion);
@@ -161,6 +163,55 @@ r.get('/grupos-familiares', permiso('padron', 'leer'), (req, res) => {
     FROM grupos_familiares gf JOIN personas p ON p.id = gf.titular_persona_id WHERE gf.nombre LIKE ? ORDER BY gf.nombre LIMIT 50`).all(`%${req.query.q ?? ''}%`));
 });
 
+/**
+ * Cuenta de ingreso del socio recién aprobado, con el email de su solicitud y el rol socio.
+ * No se entrega contraseña: le llega un enlace para elegirla. Devuelve qué pasó, para mostrarlo en la bandeja.
+ */
+async function cuentaDelNuevoSocio(req, { personaId, nombre, email, nroSocio, fechaNacimiento }) {
+  const db = getDb();
+  const rolSocio = db.prepare(`SELECT id FROM roles WHERE codigo = 'socio'`).pluck().get();
+  const propia = db.prepare('SELECT * FROM usuarios WHERE persona_id = ?').get(personaId);
+  if (propia) {
+    if (!db.prepare('SELECT 1 FROM usuario_roles WHERE usuario_id = ? AND rol_id = ?').get(propia.id, rolSocio)) {
+      db.prepare('INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (?, ?)').run(propia.id, rolSocio);
+      auditar(req, 'asignar_rol', 'usuarios', propia.id, null, { rol: 'socio', origen: 'solicitud_alta' });
+    }
+    return { creada: false, aviso: `Ya tenía cuenta (${propia.email}): ahora también tiene el rol socio.` };
+  }
+  const anios = edad(fechaNacimiento);
+  if (anios !== null && anios < 18) return { creada: false, aviso: 'Es menor de edad: no se crea cuenta propia; accede desde la de su titular o tutor.' };
+  if (!email) return { creada: false, aviso: 'La solicitud no tiene email: creá la cuenta desde Usuarios y roles.' };
+  if (db.prepare('SELECT 1 FROM usuarios WHERE email = ?').get(email)) {
+    return { creada: false, aviso: `El email ${email} ya lo usa otra cuenta: creá la del socio desde Usuarios y roles con otro email.` };
+  }
+  const hash = await hashSinUso();
+  const usuario = enTransaccion(() => {
+    const id = db.prepare('INSERT INTO usuarios (persona_id, email, password_hash) VALUES (?, ?, ?) RETURNING id').get(personaId, email, hash).id;
+    db.prepare('INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (?, ?)').run(id, rolSocio);
+    return db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
+  });
+  auditar(req, 'alta_usuario', 'usuarios', usuario.id, null, { email, roles: ['socio'], origen: 'solicitud_alta' });
+  const enlace = enlaceContrasena(usuario, { modo: 'activar', vence: '7d' });
+  const enviado = await enviarCorreo({
+    para: email,
+    asunto: 'Tu alta en el Club Los Cooperarios fue aprobada',
+    texto: `Hola, ${nombre}:
+
+Tu solicitud de alta fue aprobada. Ya sos socio/a N° ${nroSocio}.
+
+`
+      + `Para ingresar a la plataforma del club, elegí tu contraseña con este enlace (vale 7 días):
+${enlace}
+
+`
+      + `Tu usuario es este email: ${email}. Si el enlace venció, pedí uno nuevo con «Olvidé mi contraseña» en la pantalla de ingreso.
+
+`
+      + 'Club Social y Deportivo Los Cooperarios',
+  });
+  return { creada: true, email, correo_enviado: enviado, enlace_dev: config.produccion ? undefined : enlace };
+}
+
 // ---------- Bandeja de solicitudes (altas, bajas, cambios, reclamos, sugerencias) ----------
 r.get('/solicitudes', permiso('altas_bajas', 'gestionar', 'leer', 'aprobar'), (req, res) => {
   const db = getDb();
@@ -171,7 +222,7 @@ r.get('/solicitudes', permiso('altas_bajas', 'gestionar', 'leer', 'aprobar'), (r
     ORDER BY s.creada_en DESC LIMIT 200`).all(...[estado, estado, ...(tipo ? [tipo] : [])]).map((s) => ({ ...s, datos: json(s.datos_json, {}) })));
 });
 
-r.post('/solicitudes/:id/resolver', permiso('altas_bajas', 'gestionar'), (req, res) => {
+r.post('/solicitudes/:id/resolver', permiso('altas_bajas', 'gestionar'), async (req, res) => {
   const datos = validar(z.object({ estado: z.enum(['en_proceso', 'aprobada', 'rechazada', 'resuelta']), respuesta: z.string().max(1000).optional(), alta: altaSchema.partial().optional() }), req.body);
   const db = getDb();
   const s = db.prepare('SELECT * FROM solicitudes WHERE id = ?').get(req.params.id);
@@ -187,6 +238,10 @@ r.post('/solicitudes/:id/resolver', permiso('altas_bajas', 'gestionar'), (req, r
         grupo_familiar_id: titular?.grupo_familiar_id ?? null, tutor_persona_id: titular && edad(d.fecha_nacimiento) < 18 ? s.persona_id : null, parentesco: d.parentesco,
         consentimiento: true, solicitud_id: s.id, ...datos.alta,
       }), req);
+      const persona = db.prepare('SELECT * FROM personas WHERE id = ?').get(resultado.persona_id);
+      resultado.cuenta = await cuentaDelNuevoSocio(req, {
+        personaId: persona.id, nombre: persona.nombre, email: datos.alta?.email || d.email, nroSocio: resultado.nro_socio, fechaNacimiento: persona.fecha_nacimiento,
+      });
     } else if (s.tipo === 'baja') {
       db.prepare(`UPDATE socios SET estado = 'baja', fecha_baja = ?, motivo_baja = ? WHERE persona_id = ?`).run(local().fecha, d.motivo ?? 'Solicitud del socio', s.persona_id);
       db.prepare(`UPDATE inscripciones SET estado = 'baja', hasta = ? WHERE persona_id = ? AND estado != 'baja'`).run(local().fecha, s.persona_id);
