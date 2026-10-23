@@ -68,7 +68,7 @@ export function registrarPago({ personaId, medio, importe, cargoIds, referencia 
 
   const caja = cajaId ?? cajaPorMedio(medio);
   const pagoId = db.prepare(`INSERT INTO pagos (persona_id, fecha, medio, caja_id, importe, referencia, registrado_por)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(personaId, fecha, medio, caja, importe, referencia, usuarioId).lastInsertRowid;
+    VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(personaId, fecha, medio, caja, importe, referencia, usuarioId).id;
 
   let resto = importe;
   for (const c of cargos) {
@@ -81,7 +81,7 @@ export function registrarPago({ personaId, medio, importe, cargoIds, referencia 
   }
   const numero = siguienteNumero('recibo');
   const comprobanteId = db.prepare(`INSERT INTO comprobantes (tipo, numero, persona_id, pago_id, fecha, total)
-    VALUES ('recibo', ?, ?, ?, ?, ?)`).run(numero, personaId, pagoId, fecha, importe).lastInsertRowid;
+    VALUES ('recibo', ?, ?, ?, ?, ?) RETURNING id`).get(numero, personaId, pagoId, fecha, importe).id;
   db.prepare(`INSERT INTO movimientos_caja (caja_id, fecha, tipo, importe, concepto, ref_tipo, ref_id, usuario_id)
     VALUES (?, ?, 'ingreso', ?, ?, 'pago', ?, ?)`).run(caja, fecha, importe, `Cobro ${numero}`, pagoId, usuarioId);
   return { pagoId, comprobanteId, numero };
@@ -96,7 +96,7 @@ export function notaCredito({ cargoId, importe, motivo, usuarioId }) {
   if (importe > saldo) throw invalido('La nota de crédito supera el saldo del cargo');
   exigirPeriodoAbierto(ahora());
   const pagoId = db.prepare(`INSERT INTO pagos (persona_id, fecha, medio, importe, referencia, registrado_por)
-    VALUES (?, ?, 'otro', ?, ?, ?)`).run(cargo.persona_id, ahora(), importe, `Nota de crédito: ${motivo}`, usuarioId).lastInsertRowid;
+    VALUES (?, ?, 'otro', ?, ?, ?) RETURNING id`).get(cargo.persona_id, ahora(), importe, `Nota de crédito: ${motivo}`, usuarioId).id;
   db.prepare('INSERT INTO imputaciones (pago_id, cargo_id, importe) VALUES (?, ?, ?)').run(pagoId, cargoId, importe);
   db.prepare('UPDATE cargos SET estado = ? WHERE id = ?').run(importe === saldo ? (importe === cargo.importe ? 'anulado' : 'pagado') : 'parcial', cargoId);
   const numero = siguienteNumero('nota_credito');
@@ -109,5 +109,5 @@ export function crearCargo({ personaId, conceptoTipo, descripcion, periodo, impo
   const db = getDb();
   const conceptoId = db.prepare('SELECT id FROM conceptos WHERE tipo = ? ORDER BY id LIMIT 1').pluck().get(conceptoTipo);
   return db.prepare(`INSERT INTO cargos (persona_id, concepto_id, descripcion, periodo, importe, vencimiento, origen_tipo, origen_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(personaId, conceptoId, descripcion, periodo, importe, vencimiento, origenTipo, origenId).lastInsertRowid;
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(personaId, conceptoId, descripcion, periodo, importe, vencimiento, origenTipo, origenId).id;
 }

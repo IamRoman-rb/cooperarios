@@ -18,7 +18,9 @@ export default function Pagar() {
   const aviso = useAviso();
 
   const pendientes = q.data?.pendientes ?? [];
-  const seleccion = elegidos ?? new Set(pendientes.filter((c) => c.situacion === 'vencido').map((c) => c.id));
+  // Se paga por integrante: por defecto, los vencidos del primero que tenga deuda vencida.
+  const primeraPersona = pendientes.find((c) => c.situacion === 'vencido')?.persona_id;
+  const seleccion = elegidos ?? new Set(pendientes.filter((c) => c.situacion === 'vencido' && c.persona_id === primeraPersona).map((c) => c.id));
   const elegidosLista = pendientes.filter((c) => seleccion.has(c.id));
   const total = elegidosLista.reduce((s, c) => s + c.saldo, 0);
   const variasPersonas = new Set(elegidosLista.map((c) => c.persona_id)).size > 1;

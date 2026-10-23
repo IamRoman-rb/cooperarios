@@ -14,7 +14,7 @@ export default function PuntosAcceso() {
   const [edicion, setEdicion] = useState(null);
   const [lector, setLector] = useState(null);
   const [clave, setClave] = useState(null);
-  const guardar = useAccion(() => api.post('/api/acceso/puntos', { ...edicion, espacio_id: edicion.espacio_id ? Number(edicion.espacio_id) : null, actividad_id: edicion.actividad_id ? Number(edicion.actividad_id) : null }), { ok: 'Punto guardado', invalidar: ['/api/acceso'], alTerminar: () => setEdicion(null) });
+  const guardar = useAccion(() => api.post('/api/acceso/puntos', { ...edicion, espacio_id: edicion.espacio_id || null, actividad_id: edicion.actividad_id || null }), { ok: 'Punto guardado', invalidar: ['/api/acceso'], alTerminar: () => setEdicion(null) });
   const alta = useAccion(() => api.post(`/api/acceso/puntos/${lector.punto_id}/lectores`, { nombre: lector.nombre, lector_id: lector.lector_id }), { invalidar: ['/api/acceso'], alTerminar: (r) => { setLector(null); setClave(r.clave); } });
   return (
     <>

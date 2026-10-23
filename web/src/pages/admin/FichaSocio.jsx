@@ -12,7 +12,7 @@ export default function FichaSocio() {
   const categorias = useDatos('/api/padron/categorias');
   const [vista, setVista] = useState('resumen');
   const [cambio, setCambio] = useState(null);
-  const guardar = useAccion(() => api.put(`/api/padron/socios/${id}`, { ...cambio, categoria_id: cambio.categoria_id ? Number(cambio.categoria_id) : undefined }), { ok: 'Socio actualizado', invalidar: ['/api/padron'], alTerminar: () => setCambio(null) });
+  const guardar = useAccion(() => api.put(`/api/padron/socios/${id}`, { ...cambio, categoria_id: cambio.categoria_id || undefined }), { ok: 'Socio actualizado', invalidar: ['/api/padron'], alTerminar: () => setCambio(null) });
   return (
     <Consulta q={q}>
       {(d) => (

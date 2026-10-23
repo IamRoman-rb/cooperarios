@@ -197,7 +197,7 @@ export function DetalleTicket({ id, usuarioId, gestor }) {
 
             <Modal abierto={!!accion} titulo={ACCIONES_TICKET[t.estado]?.find((a) => a.accion === accion)?.texto ?? ''} onCerrar={() => setAccion(null)}
               pie={<><Boton variante="suave" onClick={() => setAccion(null)}>Cancelar</Boton>
-                <Boton cargando={ejecutar.isPending} onClick={() => ejecutar.mutate({ accion, datos: { comentario: comentario || undefined, asignado_a: asignado ? Number(asignado) : undefined, costo: costo ? Math.round(Number(costo) * 100) : undefined } })}>Confirmar</Boton></>}>
+                <Boton cargando={ejecutar.isPending} onClick={() => ejecutar.mutate({ accion, datos: { comentario: comentario || undefined, asignado_a: asignado || undefined, costo: costo ? Math.round(Number(costo) * 100) : undefined } })}>Confirmar</Boton></>}>
               <div className="space-y-space-md">
                 {accion === 'asignar' && (
                   <Campo etiqueta="Responsable">

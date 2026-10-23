@@ -9,7 +9,7 @@ import path from 'node:path';
 import { getDb, ahora, backup, enTransaccion } from '../db/index.js';
 import { requiereSesion, hashPassword } from '../lib/auth.js';
 import { permiso, matriz, ROLES, tieneRol } from '../lib/rbac.js';
-import { validar, invalido, noEncontrado, prohibido, paginar } from '../lib/util.js';
+import { validar, invalido, noEncontrado, prohibido, paginar, zId } from '../lib/util.js';
 import { auditar } from '../lib/auditoria.js';
 import { config } from '../config.js';
 import { estadoTareas, backupNocturno } from '../services/tareas.js';
@@ -158,10 +158,10 @@ r.get('/usuarios', permiso('usuarios', 'leer', 'gestionar'), (req, res) => {
 });
 
 const usuarioSchema = z.object({
-  email: z.string().email(), persona_id: z.number().int().optional(),
+  email: z.string().email(), persona_id: zId.optional(),
   persona: z.object({ nombre: z.string().min(2), apellido: z.string().min(2), dni: z.string().regex(/^\d{7,9}$/) }).optional(),
   password: z.string().min(10).regex(/[A-Za-z]/).regex(/\d/).optional(),
-  roles: z.array(z.object({ codigo: z.string(), actividad_id: z.number().int().nullable().optional() })).min(1),
+  roles: z.array(z.object({ codigo: z.string(), actividad_id: zId.nullable().optional() })).min(1),
 });
 
 function asignarRoles(usuarioId, roles) {
@@ -184,9 +184,9 @@ r.post('/usuarios', permiso('usuarios', 'gestionar'), async (req, res) => {
     let personaId = d.persona_id;
     if (!personaId && d.persona) {
       personaId = db.prepare('SELECT id FROM personas WHERE dni = ?').pluck().get(d.persona.dni)
-        ?? db.prepare(`INSERT INTO personas (dni, nombre, apellido, email, tipo) VALUES (?, ?, ?, ?, 'empleado')`).run(d.persona.dni, d.persona.nombre, d.persona.apellido, d.email).lastInsertRowid;
+        ?? db.prepare(`INSERT INTO personas (dni, nombre, apellido, email, tipo) VALUES (?, ?, ?, ?, 'empleado') RETURNING id`).get(d.persona.dni, d.persona.nombre, d.persona.apellido, d.email).id;
     }
-    const nuevo = db.prepare('INSERT INTO usuarios (persona_id, email, password_hash) VALUES (?, ?, ?)').run(personaId ?? null, d.email, hash).lastInsertRowid;
+    const nuevo = db.prepare('INSERT INTO usuarios (persona_id, email, password_hash) VALUES (?, ?, ?) RETURNING id').get(personaId ?? null, d.email, hash).id;
     asignarRoles(nuevo, d.roles);
     return nuevo;
   });
@@ -198,7 +198,7 @@ r.post('/usuarios', permiso('usuarios', 'gestionar'), async (req, res) => {
 /** Cambio de roles. Nadie se modifica los propios permisos. */
 r.put('/usuarios/:id', permiso('usuarios', 'gestionar'), (req, res) => {
   const d = validar(z.object({ roles: usuarioSchema.shape.roles.optional(), estado: z.enum(['activo', 'bloqueado', 'baja']).optional(), desbloquear: z.boolean().optional() }), req.body);
-  const id = Number(req.params.id);
+  const id = req.params.id;
   if (id === req.usuario.id && d.roles) throw prohibido('No podés modificar tus propios roles');
   const db = getDb();
   const antes = db.prepare(`SELECT r.codigo, ur.actividad_id FROM usuario_roles ur JOIN roles r ON r.id = ur.rol_id WHERE ur.usuario_id = ?`).all(id);

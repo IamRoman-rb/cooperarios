@@ -15,7 +15,7 @@ export default function Inscripciones() {
   const [busqueda, setBusqueda] = useState('');
   const [baja, setBaja] = useState(null);
   const personas = useDatos(alta && busqueda.length >= 2 ? `/api/cobranzas/buscar?q=${encodeURIComponent(busqueda)}` : null);
-  const inscribir = useAccion(() => api.post('/api/actividades/inscripciones', { persona_id: alta.persona.id, grupo_id: Number(alta.grupo_id), frecuencia: Number(alta.frecuencia) }), { ok: 'Inscripción registrada', invalidar: ['/api/actividades'], alTerminar: () => setAlta(null) });
+  const inscribir = useAccion(() => api.post('/api/actividades/inscripciones', { persona_id: alta.persona.id, grupo_id: alta.grupo_id, frecuencia: Number(alta.frecuencia) }), { ok: 'Inscripción registrada', invalidar: ['/api/actividades'], alTerminar: () => setAlta(null) });
   const darBaja = useAccion((motivo) => api.post(`/api/actividades/inscripciones/${baja.id}/baja`, { motivo }), { ok: 'Baja registrada', invalidar: ['/api/actividades'], alTerminar: () => setBaja(null) });
   const quitarEspera = useAccion((id) => api.del(`/api/actividades/lista-espera/${id}`), { ok: 'Quitado de la lista', invalidar: ['/api/actividades'] });
   const grupos = (act.data ?? []).flatMap((a) => a.grupos.map((g) => ({ value: g.id, label: `${a.nombre} · ${g.nombre} (${g.vacantes} vac.)`, aranceles: a.aranceles })));

@@ -71,7 +71,7 @@ export function cotizar({ personaId, actividadId, frecuencia, descuentoId = null
   const disponibles = personaId ? descuentosAplicables(personaId, { socio }) : [];
   let elegido = null;
   if (descuentoId) {
-    elegido = disponibles.find((d) => d.id === Number(descuentoId));
+    elegido = disponibles.find((d) => d.id === String(descuentoId));
     if (!elegido) throw invalido('El descuento elegido no corresponde a tu situación');
   } else {
     elegido = disponibles

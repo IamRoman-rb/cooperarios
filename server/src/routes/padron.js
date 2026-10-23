@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getDb, ahora, enTransaccion } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { permiso, puede, ambitoActividades } from '../lib/rbac.js';
-import { validar, invalido, noEncontrado, local, edad, json, paginar } from '../lib/util.js';
+import { validar, invalido, noEncontrado, local, edad, json, paginar, marcas, zId } from '../lib/util.js';
 import { auditar, notificar, usuarioDePersona } from '../lib/auditoria.js';
 import { categoriaPorEdad, cuotaSocial } from '../services/precios.js';
 import { resumenCuenta, crearCargo, cargosDe } from '../services/cuenta.js';
@@ -28,10 +28,11 @@ r.get('/socios', permiso('padron', 'leer', 'leer_ambito'), (req, res) => {
     params.push(`%${req.query.q}%`, `%${req.query.q}%`, `%${req.query.q}%`);
   }
   if (req.query.estado) { filtros.push('s.estado = ?'); params.push(req.query.estado); }
-  if (req.query.categoria_id) { filtros.push('s.categoria_id = ?'); params.push(Number(req.query.categoria_id)); }
+  if (req.query.categoria_id) { filtros.push('s.categoria_id = ?'); params.push(String(req.query.categoria_id)); }
   const ambito = ambitoActividades(req.usuario);
   if (!completo && ambito.length) {
-    filtros.push(`p.id IN (SELECT i.persona_id FROM inscripciones i JOIN grupos g ON g.id = i.grupo_id WHERE g.actividad_id IN (${ambito.join(',')}) AND i.estado != 'baja')`);
+    filtros.push(`p.id IN (SELECT i.persona_id FROM inscripciones i JOIN grupos g ON g.id = i.grupo_id WHERE g.actividad_id IN (${marcas(ambito)}) AND i.estado != 'baja')`);
+    params.push(...ambito);
   }
   const where = filtros.length ? `WHERE ${filtros.join(' AND ')}` : '';
   const total = db.prepare(`SELECT COUNT(*) FROM socios s JOIN personas p ON p.id = s.persona_id ${where}`).pluck().get(...params);
@@ -52,7 +53,7 @@ r.get('/socios', permiso('padron', 'leer', 'leer_ambito'), (req, res) => {
 
 r.get('/socios/:personaId', permiso('padron', 'leer'), (req, res) => {
   const db = getDb();
-  const id = Number(req.params.personaId);
+  const id = req.params.personaId;
   const persona = db.prepare('SELECT * FROM personas WHERE id = ?').get(id);
   if (!persona) throw noEncontrado('Persona');
   const socio = db.prepare(`SELECT s.*, c.nombre AS categoria FROM socios s JOIN categorias_socio c ON c.id = s.categoria_id WHERE s.persona_id = ?`).get(id);
@@ -70,7 +71,7 @@ r.get('/socios/:personaId', permiso('padron', 'leer'), (req, res) => {
     consentimientos: db.prepare('SELECT tipo, version_texto, aceptado_en, revocado_en FROM consentimientos WHERE persona_id = ? ORDER BY id DESC').all(id),
     historial: db.prepare(`SELECT a.accion, a.entidad, a.creado_en, a.antes, a.despues, p.nombre || ' ' || p.apellido AS usuario FROM auditoria a
       LEFT JOIN usuarios u ON u.id = a.usuario_id LEFT JOIN personas p ON p.id = u.persona_id
-      WHERE (a.entidad IN ('socios','personas') AND a.entidad_id IN (?, ?)) ORDER BY a.id DESC LIMIT 30`).all(id, socio?.id ?? -1),
+      WHERE (a.entidad IN ('socios','personas') AND a.entidad_id IN (?, ?)) ORDER BY a.id DESC LIMIT 30`).all(id, socio?.id ?? null),
     accesos: db.prepare(`SELECT ac.fecha_hora, ac.resultado, ac.motivo_codigo, a.nombre AS actividad FROM accesos ac LEFT JOIN actividades a ON a.id = ac.actividad_id WHERE ac.persona_id = ? ORDER BY ac.id DESC LIMIT 15`).all(id),
   });
 });
@@ -79,14 +80,14 @@ const altaSchema = z.object({
   nombre: z.string().min(2), apellido: z.string().min(2), dni: z.string().regex(/^\d{7,9}$/),
   fecha_nacimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), email: z.string().email().optional().or(z.literal('')),
   telefono: z.string().optional(), domicilio: z.string().optional(), jubilado: z.boolean().default(false),
-  categoria_id: z.number().int().optional(),
-  grupo_familiar_id: z.number().int().nullable().optional(),
+  categoria_id: zId.optional(),
+  grupo_familiar_id: zId.nullable().optional(),
   crear_grupo_familiar: z.boolean().default(false),
-  tutor_persona_id: z.number().int().nullable().optional(),
+  tutor_persona_id: zId.nullable().optional(),
   parentesco: z.string().optional(),
   llave: z.boolean().default(false),
   consentimiento: z.boolean().refine((v) => v, 'Falta el consentimiento informado firmado'),
-  solicitud_id: z.number().int().optional(),
+  solicitud_id: zId.optional(),
 });
 
 /** Alta de socio (y opcionalmente de su grupo familiar). Genera la primera cuota y, si corresponde, el cargo de la llave. */
@@ -96,14 +97,14 @@ export function altaSocio(datos, req) {
     let persona = db.prepare('SELECT * FROM personas WHERE dni = ?').get(datos.dni);
     if (persona && db.prepare('SELECT 1 FROM socios WHERE persona_id = ?').get(persona.id)) throw invalido('Esa persona ya es socia');
     const personaId = persona?.id ?? db.prepare(`INSERT INTO personas (dni, nombre, apellido, fecha_nacimiento, email, telefono, domicilio, jubilado, tipo)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'socio')`).run(datos.dni, datos.nombre, datos.apellido, datos.fecha_nacimiento, datos.email || null, datos.telefono ?? null, datos.domicilio ?? null, datos.jubilado ? 1 : 0).lastInsertRowid;
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'socio') RETURNING id`).get(datos.dni, datos.nombre, datos.apellido, datos.fecha_nacimiento, datos.email || null, datos.telefono ?? null, datos.domicilio ?? null, datos.jubilado ? 1 : 0).id;
     let grupoId = datos.grupo_familiar_id ?? null;
-    if (datos.crear_grupo_familiar) grupoId = db.prepare('INSERT INTO grupos_familiares (titular_persona_id, nombre) VALUES (?, ?)').run(personaId, `Familia ${datos.apellido}`).lastInsertRowid;
+    if (datos.crear_grupo_familiar) grupoId = db.prepare('INSERT INTO grupos_familiares (titular_persona_id, nombre) VALUES (?, ?) RETURNING id').get(personaId, `Familia ${datos.apellido}`).id;
     const categoriaId = datos.categoria_id ?? categoriaPorEdad(datos.fecha_nacimiento).id;
     const nro = (db.prepare('SELECT MAX(nro_socio) FROM socios').pluck().get() ?? 1000) + 1;
     const hoy = local().fecha;
-    const socioId = db.prepare(`INSERT INTO socios (persona_id, nro_socio, categoria_id, grupo_familiar_id, estado, fecha_alta, llave_nro) VALUES (?, ?, ?, ?, 'activo', ?, ?)`)
-      .run(personaId, nro, categoriaId, grupoId, hoy, datos.llave ? `LL-${nro}` : null).lastInsertRowid;
+    const socioId = db.prepare(`INSERT INTO socios (persona_id, nro_socio, categoria_id, grupo_familiar_id, estado, fecha_alta, llave_nro) VALUES (?, ?, ?, ?, 'activo', ?, ?) RETURNING id`)
+      .get(personaId, nro, categoriaId, grupoId, hoy, datos.llave ? `LL-${nro}` : null).id;
     if (datos.tutor_persona_id) db.prepare('INSERT OR IGNORE INTO tutores VALUES (?, ?, ?)').run(personaId, datos.tutor_persona_id, datos.parentesco ?? 'tutor');
     const version = db.prepare(`SELECT valor FROM parametros WHERE clave = 'texto_consentimiento_version'`).pluck().get();
     for (const tipo of ['datos_personales', 'comunicaciones']) {
@@ -127,13 +128,13 @@ r.post('/socios', permiso('altas_bajas', 'gestionar'), (req, res) => {
 r.put('/socios/:personaId', permiso('altas_bajas', 'gestionar'), (req, res) => {
   const datos = validar(z.object({
     estado: z.enum(['activo', 'suspendido', 'baja']).optional(),
-    categoria_id: z.number().int().optional(),
+    categoria_id: zId.optional(),
     motivo: z.string().min(3).optional(),
-    grupo_familiar_id: z.number().int().nullable().optional(),
+    grupo_familiar_id: zId.nullable().optional(),
     email: z.string().email().optional(), telefono: z.string().optional(), domicilio: z.string().optional(), jubilado: z.boolean().optional(),
   }), req.body);
   const db = getDb();
-  const id = Number(req.params.personaId);
+  const id = req.params.personaId;
   const s = db.prepare('SELECT * FROM socios WHERE persona_id = ?').get(id);
   if (!s) throw noEncontrado('Socio');
   if (datos.estado && datos.estado !== s.estado && !datos.motivo) throw invalido('Indicá el motivo del cambio de estado');
@@ -191,7 +192,7 @@ r.post('/solicitudes/:id/resolver', permiso('altas_bajas', 'gestionar'), (req, r
       db.prepare(`UPDATE inscripciones SET estado = 'baja', hasta = ? WHERE persona_id = ? AND estado != 'baja'`).run(local().fecha, s.persona_id);
       auditar(req, 'baja_socio', 'socios', s.persona_id, null, { motivo: d.motivo });
     } else if (s.tipo === 'cambio_categoria' && d.categoria_id) {
-      db.prepare('UPDATE socios SET categoria_id = ? WHERE persona_id = ?').run(Number(d.categoria_id), s.persona_id);
+      db.prepare('UPDATE socios SET categoria_id = ? WHERE persona_id = ?').run(String(d.categoria_id), s.persona_id);
       auditar(req, 'cambio_categoria', 'socios', s.persona_id, null, { categoria_id: d.categoria_id });
     }
   }

@@ -21,10 +21,10 @@ export default function AgendaEspacios({ modo }) {
   const q = useDatos(`/api/espacios/calendario?desde=${semana}&hasta=${fin}${espacio ? `&espacio_id=${espacio}` : ''}`);
   const espacios = useDatos('/api/espacios');
   const tablero = useDatos(modo === 'subcomision' ? '/api/tablero' : null);
-  const bloquear = useAccion(() => api.post('/api/espacios/bloqueos', { espacio_id: Number(bloqueo.espacio_id), desde: new Date(`${bloqueo.dia}T${bloqueo.desde}:00-03:00`).toISOString(), hasta: new Date(`${bloqueo.dia}T${bloqueo.hasta}:00-03:00`).toISOString(), motivo: bloqueo.motivo }), {
+  const bloquear = useAccion(() => api.post('/api/espacios/bloqueos', { espacio_id: bloqueo.espacio_id, desde: new Date(`${bloqueo.dia}T${bloqueo.desde}:00-03:00`).toISOString(), hasta: new Date(`${bloqueo.dia}T${bloqueo.hasta}:00-03:00`).toISOString(), motivo: bloqueo.motivo }), {
     ok: 'Bloqueo registrado', invalidar: ['/api/espacios'], alTerminar: () => setBloqueo(null),
   });
-  const reservaClase = useAccion(() => api.post('/api/espacios/reservas', { espacio_id: Number(bloqueo.espacio_id), tipo: bloqueo.tipo, inicio: new Date(`${bloqueo.dia}T${bloqueo.desde}:00-03:00`).toISOString(), fin: new Date(`${bloqueo.dia}T${bloqueo.hasta}:00-03:00`).toISOString() }), {
+  const reservaClase = useAccion(() => api.post('/api/espacios/reservas', { espacio_id: bloqueo.espacio_id, tipo: bloqueo.tipo, inicio: new Date(`${bloqueo.dia}T${bloqueo.desde}:00-03:00`).toISOString(), fin: new Date(`${bloqueo.dia}T${bloqueo.hasta}:00-03:00`).toISOString() }), {
     ok: 'Reserva registrada', invalidar: ['/api/espacios'], alTerminar: () => setBloqueo(null),
   });
   const dias = Array.from({ length: 7 }, (_, i) => sumarDias(semana, i));

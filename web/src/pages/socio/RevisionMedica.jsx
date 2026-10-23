@@ -66,7 +66,7 @@ export default function RevisionMedica() {
             ))}
 
             <Modal abierto={!!turno} titulo="Pedir turno con el médico del club" onCerrar={() => setTurno(null)}
-              pie={<><Boton variante="suave" onClick={() => setTurno(null)}>Cancelar</Boton><Boton cargando={pedir.isPending} disabled={!turno?.inicio} onClick={() => pedir.mutate({ ...turno, tipo_revision_id: Number(turno.tipo_revision_id), inicio: new Date(turno.inicio).toISOString() })}>Pedir turno</Boton></>}>
+              pie={<><Boton variante="suave" onClick={() => setTurno(null)}>Cancelar</Boton><Boton cargando={pedir.isPending} disabled={!turno?.inicio} onClick={() => pedir.mutate({ ...turno, tipo_revision_id: turno.tipo_revision_id, inicio: new Date(turno.inicio).toISOString() })}>Pedir turno</Boton></>}>
               {turno && (
                 <div className="space-y-space-md">
                   <Campo etiqueta="Tipo de revisión"><Selector value={turno.tipo_revision_id} onChange={(e) => setTurno({ ...turno, tipo_revision_id: e.target.value })} opciones={d.tipos.map((t) => ({ value: t.id, label: t.nombre }))} /></Campo>

@@ -12,7 +12,7 @@ export default function SolicitudesCompra() {
   const { roles } = useSesion();
   const delegado = roles.find((r) => r.codigo === 'subcomision');
   const [form, setForm] = useState({ descripcion: '', monto: '', ticket_id: '' });
-  const crear = useAccion(() => api.post('/api/compras', { descripcion: form.descripcion, monto_estimado: aCentavos(form.monto), ticket_id: form.ticket_id ? Number(form.ticket_id) : null, actividad_id: delegado?.actividad_id ?? null }), {
+  const crear = useAccion(() => api.post('/api/compras', { descripcion: form.descripcion, monto_estimado: aCentavos(form.monto), ticket_id: form.ticket_id || null, actividad_id: delegado?.actividad_id ?? null }), {
     ok: 'Pedido enviado a Comisión Directiva y Contabilidad', invalidar: ['/api/compras'], alTerminar: () => setForm({ descripcion: '', monto: '', ticket_id: '' }),
   });
   return (

@@ -28,10 +28,10 @@ export function crearTicket({ titulo, descripcion, sectorId, categoria, priorida
   const asignado = sector.responsable_default_id ?? null;
   const id = db.prepare(`INSERT INTO tickets_mantenimiento
     (codigo, titulo, descripcion, sector_id, categoria, prioridad, estado, reportado_por, asignado_a, creado_en, vence_en)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(
     siguienteCodigo(), titulo, descripcion, sectorId, categoria, prioridad, asignado ? 'asignado' : 'nuevo',
     usuario.id, asignado, ahora(), vencimientoPorPrioridad(prioridad),
-  ).lastInsertRowid;
+  ).id;
   historial(id, null, 'nuevo', usuario.id);
   if (asignado) {
     historial(id, 'nuevo', 'asignado', null);

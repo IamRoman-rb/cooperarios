@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getDb, ahora, enTransaccion } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { permiso, puede } from '../lib/rbac.js';
-import { validar, invalido, conflicto, noEncontrado, prohibido, local } from '../lib/util.js';
+import { validar, invalido, conflicto, noEncontrado, prohibido, local, zId } from '../lib/util.js';
 import { auditar } from '../lib/auditoria.js';
 import { crearCargo } from '../services/cuenta.js';
 
@@ -51,8 +51,8 @@ export function reservar({ espacio_id: espacioId, inicio, fin, personaId = null,
     const choque = superpone(espacioId, ini.toISOString(), fn.toISOString());
     if (choque) throw conflicto(choque);
     const monto = importe ?? (tipo === 'alquiler' ? Math.round(e.tarifa_hora * ((fn - ini) / 3600000)) : 0);
-    const id = db.prepare(`INSERT INTO reservas (espacio_id, persona_id, inicio, fin, tipo, importe) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(espacioId, personaId, ini.toISOString(), fn.toISOString(), tipo, monto).lastInsertRowid;
+    const id = db.prepare(`INSERT INTO reservas (espacio_id, persona_id, inicio, fin, tipo, importe) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`)
+      .get(espacioId, personaId, ini.toISOString(), fn.toISOString(), tipo, monto).id;
     if (monto > 0 && personaId) {
       crearCargo({ personaId, conceptoTipo: 'alquiler', descripcion: `Alquiler ${e.nombre}`, periodo: local(ini).periodo, importe: monto, vencimiento: local(ini).fecha, origenTipo: 'reserva', origenId: id });
     }
@@ -91,7 +91,7 @@ function guardarEspacio(id, datos) {
   const db = getDb();
   const base = [datos.nombre, datos.tipo, datos.capacidad ?? null, datos.reservable ? 1 : 0, datos.tarifa_hora, datos.activo ? 1 : 0];
   if (id) db.prepare('UPDATE espacios SET nombre = ?, tipo = ?, capacidad = ?, reservable = ?, tarifa_hora = ?, activo = ? WHERE id = ?').run(...base, id);
-  else id = db.prepare('INSERT INTO espacios (nombre, tipo, capacidad, reservable, tarifa_hora, activo) VALUES (?, ?, ?, ?, ?, ?)').run(...base).lastInsertRowid;
+  else id = db.prepare('INSERT INTO espacios (nombre, tipo, capacidad, reservable, tarifa_hora, activo) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').get(...base).id;
   if (datos.reservable) {
     db.prepare(`INSERT INTO reglas_reserva (espacio_id, anticipacion_dias, max_activas, cancelacion_horas, sancion) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT (espacio_id) DO UPDATE SET anticipacion_dias = excluded.anticipacion_dias, max_activas = excluded.max_activas,
@@ -107,8 +107,8 @@ r.post('/', permiso('reservas', 'gestionar'), (req, res) => {
   res.status(201).json({ id });
 });
 r.put('/:id', permiso('reservas', 'gestionar'), (req, res) => {
-  guardarEspacio(Number(req.params.id), validar(espacioSchema, req.body));
-  auditar(req, 'editar', 'espacios', Number(req.params.id), null, req.body);
+  guardarEspacio(req.params.id, validar(espacioSchema, req.body));
+  auditar(req, 'editar', 'espacios', req.params.id, null, req.body);
   res.json({ ok: true });
 });
 
@@ -119,10 +119,10 @@ r.get('/calendario', permiso('reservas', 'leer', 'leer_ambito', 'gestionar_ambit
   const hasta = String(req.query.hasta ?? desde);
   const d = new Date(`${desde}T00:00:00-03:00`).toISOString();
   const h = new Date(`${hasta}T23:59:59-03:00`).toISOString();
-  const filtroEspacio = req.query.espacio_id ? 'AND r.espacio_id = ' + Number(req.query.espacio_id) : '';
+  const espacioId = req.query.espacio_id ? String(req.query.espacio_id) : null;
   res.json({
     reservas: db.prepare(`SELECT r.*, e.nombre AS espacio, p.nombre || ' ' || p.apellido AS persona FROM reservas r JOIN espacios e ON e.id = r.espacio_id
-      LEFT JOIN personas p ON p.id = r.persona_id WHERE r.inicio < ? AND r.fin > ? ${filtroEspacio} ORDER BY r.inicio`).all(h, d),
+      LEFT JOIN personas p ON p.id = r.persona_id WHERE r.inicio < ? AND r.fin > ? AND (? IS NULL OR r.espacio_id = ?) ORDER BY r.inicio`).all(h, d, espacioId, espacioId),
     bloqueos: db.prepare(`SELECT b.*, e.nombre AS espacio FROM bloqueos_espacio b JOIN espacios e ON e.id = b.espacio_id WHERE b.desde < ? AND b.hasta > ? ORDER BY b.desde`).all(h, d),
     clases: db.prepare(`SELECT h.*, g.nombre AS grupo, a.nombre AS actividad, e.nombre AS espacio FROM horarios h JOIN grupos g ON g.id = h.grupo_id
       JOIN actividades a ON a.id = g.actividad_id LEFT JOIN espacios e ON e.id = h.espacio_id ORDER BY h.dia_semana, h.hora_inicio`).all(),
@@ -131,13 +131,13 @@ r.get('/calendario', permiso('reservas', 'leer', 'leer_ambito', 'gestionar_ambit
 
 r.post('/reservas', permiso('reservas', 'gestionar', 'gestionar_ambito'), (req, res) => {
   const datos = validar(z.object({
-    espacio_id: z.number().int(), inicio: z.string(), fin: z.string(),
-    tipo: z.enum(['clase', 'alquiler', 'evento', 'torneo', 'socio']), persona_id: z.number().int().nullable().optional(), importe: z.number().int().nullable().optional(),
+    espacio_id: zId, inicio: z.string(), fin: z.string(),
+    tipo: z.enum(['clase', 'alquiler', 'evento', 'torneo', 'socio']), persona_id: zId.nullable().optional(), importe: z.number().int().nullable().optional(),
   }), req.body);
   if (!puede(req.usuario, 'reservas', 'gestionar') && !['clase', 'torneo'].includes(datos.tipo)) throw prohibido('Solo podés reservar para clases o torneos de tu actividad');
   res.status(201).json(reservar({ ...datos, personaId: datos.persona_id ?? null }, req));
 });
-r.post('/reservas/:id/cancelar', permiso('reservas', 'gestionar', 'gestionar_ambito'), (req, res) => res.json(cancelarReserva(Number(req.params.id), req)));
+r.post('/reservas/:id/cancelar', permiso('reservas', 'gestionar', 'gestionar_ambito'), (req, res) => res.json(cancelarReserva(req.params.id, req)));
 r.post('/reservas/:id/asistencia', permiso('reservas', 'gestionar'), (req, res) => {
   const { estado } = validar(z.object({ estado: z.enum(['cumplida', 'ausente']) }), req.body);
   getDb().prepare('UPDATE reservas SET estado = ? WHERE id = ?').run(estado, req.params.id);
@@ -145,15 +145,15 @@ r.post('/reservas/:id/asistencia', permiso('reservas', 'gestionar'), (req, res) 
 });
 
 r.post('/bloqueos', permiso('reservas', 'gestionar'), (req, res) => {
-  const datos = validar(z.object({ espacio_id: z.number().int(), desde: z.string(), hasta: z.string(), motivo: z.string().min(3) }), req.body);
-  const id = getDb().prepare('INSERT INTO bloqueos_espacio (espacio_id, desde, hasta, motivo) VALUES (?, ?, ?, ?)')
-    .run(datos.espacio_id, new Date(datos.desde).toISOString(), new Date(datos.hasta).toISOString(), datos.motivo).lastInsertRowid;
+  const datos = validar(z.object({ espacio_id: zId, desde: z.string(), hasta: z.string(), motivo: z.string().min(3) }), req.body);
+  const id = getDb().prepare('INSERT INTO bloqueos_espacio (espacio_id, desde, hasta, motivo) VALUES (?, ?, ?, ?) RETURNING id')
+    .get(datos.espacio_id, new Date(datos.desde).toISOString(), new Date(datos.hasta).toISOString(), datos.motivo).id;
   auditar(req, 'bloquear_espacio', 'bloqueos_espacio', id, null, datos);
   res.status(201).json({ id });
 });
 r.delete('/bloqueos/:id', permiso('reservas', 'gestionar'), (req, res) => {
   getDb().prepare('DELETE FROM bloqueos_espacio WHERE id = ?').run(req.params.id);
-  auditar(req, 'quitar_bloqueo', 'bloqueos_espacio', Number(req.params.id));
+  auditar(req, 'quitar_bloqueo', 'bloqueos_espacio', req.params.id);
   res.json({ ok: true });
 });
 

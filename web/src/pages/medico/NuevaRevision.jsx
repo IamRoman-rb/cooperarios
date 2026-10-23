@@ -11,7 +11,7 @@ const RESULTADOS = [{ value: 'apto', label: 'Apto' }, { value: 'apto_restriccion
 export default function NuevaRevision() {
   const [params] = useSearchParams();
   const navegar = useNavigate();
-  const [personaId, setPersonaId] = useState(params.get('persona') ? Number(params.get('persona')) : null);
+  const [personaId, setPersonaId] = useState(params.get('persona'));
   const [busqueda, setBusqueda] = useState('');
   const lista = useDatos(busqueda.length >= 2 ? `/api/medico/buscar?q=${encodeURIComponent(busqueda)}` : null);
   const ficha = useDatos(personaId ? `/api/medico/personas/${personaId}` : null);
@@ -23,7 +23,7 @@ export default function NuevaRevision() {
   const firmar = useAccion(() => api.post('/api/medico/revisiones', {
     persona_id: personaId, tipo_revision_id: tipo.id, resultado: form.resultado, restricciones: form.restricciones || null,
     vence_en: ['apto', 'apto_restricciones'].includes(form.resultado) ? form.vence_en || venceSugerido : null,
-    turno_id: params.get('turno') ? Number(params.get('turno')) : null, reemplaza_id: form.reemplaza_id ? Number(form.reemplaza_id) : null,
+    turno_id: params.get('turno'), reemplaza_id: form.reemplaza_id || null,
   }), { ok: 'Revisión registrada y firmada', invalidar: ['/api/medico'], alTerminar: () => navegar('/medico/inicio') });
 
   return (

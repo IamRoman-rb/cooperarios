@@ -12,8 +12,8 @@ export default function Habilitacion() {
   const [manual, setManual] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const personas = useDatos(manual && busqueda.length >= 2 ? `/api/cobranzas/buscar?q=${encodeURIComponent(busqueda)}` : null);
-  const guardarRegla = useAccion(() => api.put('/api/acceso/reglas', { actividad_id: regla.actividad_id ? Number(regla.actividad_id) : null, ...Object.fromEntries(['gracia_cuota_dias', 'gracia_arancel_dias', 'ventana_antes_min', 'ventana_despues_min'].map((k) => [k, Number(regla[k])])) }), { ok: 'Regla guardada', invalidar: ['/api/acceso'], alTerminar: () => setRegla(null) });
-  const solicitar = useAccion(() => api.post('/api/acceso/manuales', { persona_id: manual.persona.id, actividad_id: manual.actividad_id ? Number(manual.actividad_id) : null, tipo: manual.tipo, motivo: manual.motivo, desde: manual.desde, hasta: manual.hasta }), { ok: 'Solicitud enviada a la Comisión Directiva', invalidar: ['/api/acceso'], alTerminar: () => setManual(null) });
+  const guardarRegla = useAccion(() => api.put('/api/acceso/reglas', { actividad_id: regla.actividad_id || null, ...Object.fromEntries(['gracia_cuota_dias', 'gracia_arancel_dias', 'ventana_antes_min', 'ventana_despues_min'].map((k) => [k, Number(regla[k])])) }), { ok: 'Regla guardada', invalidar: ['/api/acceso'], alTerminar: () => setRegla(null) });
+  const solicitar = useAccion(() => api.post('/api/acceso/manuales', { persona_id: manual.persona.id, actividad_id: manual.actividad_id || null, tipo: manual.tipo, motivo: manual.motivo, desde: manual.desde, hasta: manual.hasta }), { ok: 'Solicitud enviada a la Comisión Directiva', invalidar: ['/api/acceso'], alTerminar: () => setManual(null) });
   const revocar = useAccion((id) => api.post(`/api/acceso/manuales/${id}/revocar`), { ok: 'Revocada', invalidar: ['/api/acceso'] });
   return (
     <Consulta q={q}>

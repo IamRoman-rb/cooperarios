@@ -18,7 +18,7 @@ export default function Empleados({ gestion }) {
   const [historial, setHistorial] = useState(null);
   const hist = useDatos(historial ? `/api/finanzas/empleados/${historial.id}/remuneraciones` : null);
   const liquidar = useAccion(() => api.post('/api/finanzas/remuneraciones/liquidar', { periodo: per }), { ok: (r) => `${r.liquidadas} liquidaciones generadas`, invalidar: ['/api/finanzas'] });
-  const pagar = useAccion(() => api.post(`/api/finanzas/remuneraciones/${pago.liq.id}/pagar`, { caja_id: Number(pago.caja_id) }), { ok: 'Pago registrado', invalidar: ['/api/finanzas'], alTerminar: () => setPago(null) });
+  const pagar = useAccion(() => api.post(`/api/finanzas/remuneraciones/${pago.liq.id}/pagar`, { caja_id: pago.caja_id }), { ok: 'Pago registrado', invalidar: ['/api/finanzas'], alTerminar: () => setPago(null) });
   const ajustar = useAccion((motivo) => api.post(`/api/finanzas/remuneraciones/${ajuste.liq.id}/ajuste`, { importe: aCentavos(ajuste.importe), motivo }), { ok: 'Ajuste registrado', invalidar: ['/api/finanzas'], alTerminar: () => setAjuste(null) });
   const guardar = useAccion(() => api.post('/api/finanzas/empleados', { ...edicion, remuneracion_base: aCentavos(edicion.remuneracion_base), fecha_baja: edicion.fecha_baja || null }), { ok: 'Empleado guardado', invalidar: ['/api/finanzas'], alTerminar: () => setEdicion(null) });
   const opcionesPeriodo = Array.from({ length: 12 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); return d.toISOString().slice(0, 7); });

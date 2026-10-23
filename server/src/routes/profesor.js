@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getDb, ahora } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { rol } from '../lib/rbac.js';
-import { validar, invalido, prohibido, local, sumarDias } from '../lib/util.js';
+import { validar, invalido, prohibido, local, sumarDias, zId } from '../lib/util.js';
 import { auditar } from '../lib/auditoria.js';
 import { horariosDeGrupo } from '../services/catalogo.js';
 import { estadoPorActividad, estadoApto } from '../services/habilitacion.js';
@@ -25,7 +25,7 @@ function misGrupos(req) {
 }
 
 function exigirGrupo(req, grupoId) {
-  const g = misGrupos(req).find((x) => x.id === Number(grupoId));
+  const g = misGrupos(req).find((x) => x.id === String(grupoId));
   if (!g) throw prohibido('Ese grupo no está a tu cargo');
   return g;
 }
@@ -88,7 +88,7 @@ r.get('/asistencia', (req, res) => {
 
 /** Correcciones manuales de asistencia, siempre justificadas. */
 r.put('/asistencia', (req, res) => {
-  const d = validar(z.object({ grupo_id: z.number().int(), fecha: z.string(), registros: z.array(z.object({ inscripcion_id: z.number().int(), presente: z.boolean(), justificacion: z.string().min(3) })) }), req.body);
+  const d = validar(z.object({ grupo_id: zId, fecha: z.string(), registros: z.array(z.object({ inscripcion_id: zId, presente: z.boolean(), justificacion: z.string().min(3) })) }), req.body);
   const g = exigirGrupo(req, d.grupo_id);
   if (d.fecha > local().fecha) throw invalido('No se registra asistencia a futuro');
   const db = getDb();
@@ -123,10 +123,10 @@ r.get('/comunicaciones', (req, res) => {
 });
 
 r.post('/comunicaciones', (req, res) => {
-  const d = validar(z.object({ grupo_id: z.number().int(), titulo: z.string().min(3).max(120), cuerpo: z.string().min(3).max(3000) }), req.body);
+  const d = validar(z.object({ grupo_id: zId, titulo: z.string().min(3).max(120), cuerpo: z.string().min(3).max(3000) }), req.body);
   exigirGrupo(req, d.grupo_id);
-  const id = getDb().prepare(`INSERT INTO comunicados (titulo, cuerpo, audiencia, categoria, publicado_por, publicado_en) VALUES (?, ?, ?, 'actividad', ?, ?)`)
-    .run(d.titulo, d.cuerpo, JSON.stringify({ tipo: 'grupo', id: d.grupo_id }), req.usuario.id, ahora()).lastInsertRowid;
+  const id = getDb().prepare(`INSERT INTO comunicados (titulo, cuerpo, audiencia, categoria, publicado_por, publicado_en) VALUES (?, ?, ?, 'actividad', ?, ?) RETURNING id`)
+    .get(d.titulo, d.cuerpo, JSON.stringify({ tipo: 'grupo', id: d.grupo_id }), req.usuario.id, ahora()).id;
   // Notificación a los alumnos con usuario (o a sus tutores, en menores).
   const db = getDb();
   const personas = db.prepare(`SELECT persona_id FROM inscripciones WHERE grupo_id = ? AND estado != 'baja'`).pluck().all(d.grupo_id);

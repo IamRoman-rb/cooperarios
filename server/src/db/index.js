@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from '../config.js';
+import { uuid } from '../lib/ids.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
@@ -17,6 +18,8 @@ export function abrirBase(archivo = config.dbFile) {
   conexion.pragma('foreign_keys = ON');
   conexion.pragma('busy_timeout = 5000');
   conexion.pragma('synchronous = NORMAL');
+  // Valor por defecto de cada columna id (ver la migración inicial).
+  conexion.function('uuid7', { deterministic: false }, uuid);
   return conexion;
 }
 
@@ -48,6 +51,11 @@ export function migrar(conexion) {
       conexion.prepare('INSERT INTO _migraciones VALUES (?, ?)').run(archivo, new Date().toISOString());
     })();
     conexion.pragma('foreign_keys = ON');
+  }
+  // Bases de desarrollo creadas antes del cambio a UUID: la migración 001 se reescribió antes de la salida en vivo.
+  const tipoId = conexion.prepare(`SELECT type FROM pragma_table_info('usuarios') WHERE name = 'id'`).pluck().get();
+  if (tipoId && tipoId.toUpperCase() !== 'TEXT') {
+    throw new Error('La base tiene el esquema viejo con ids numéricos. Detené el servidor y corré "npm run db:reset" para recrearla con UUID.');
   }
 }
 

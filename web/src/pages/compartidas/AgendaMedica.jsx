@@ -16,7 +16,7 @@ export default function AgendaMedica({ modo }) {
   const [busqueda, setBusqueda] = useState('');
   const personas = useDatos(nuevo && busqueda.length >= 2 ? `/api/medico/buscar?q=${encodeURIComponent(busqueda)}` : null);
   const estado = useAccion(({ id, ...d }) => api.put(`/api/medico/turnos/${id}`, d), { ok: 'Turno actualizado', invalidar: ['/api/medico'], alTerminar: () => setReprogramar(null) });
-  const crear = useAccion(() => api.post('/api/medico/turnos', { persona_id: nuevo.persona.id, tipo_revision_id: Number(nuevo.tipo), inicio: new Date(nuevo.inicio).toISOString() }), { ok: 'Turno agendado', invalidar: ['/api/medico'], alTerminar: () => setNuevo(null) });
+  const crear = useAccion(() => api.post('/api/medico/turnos', { persona_id: nuevo.persona.id, tipo_revision_id: nuevo.tipo, inicio: new Date(nuevo.inicio).toISOString() }), { ok: 'Turno agendado', invalidar: ['/api/medico'], alTerminar: () => setNuevo(null) });
 
   return (
     <Consulta q={q}>

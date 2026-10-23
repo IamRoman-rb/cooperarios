@@ -14,9 +14,9 @@ export default function Compras() {
   const [vista, setVista] = useState('facturas');
   const [nueva, setNueva] = useState(null);
   const [pago, setPago] = useState(null);
-  const cargar = useAccion(() => api.post('/api/finanzas/facturas', { ...nueva, proveedor_id: Number(nueva.proveedor_id), total: aCentavos(nueva.total) }), { ok: 'Factura cargada', invalidar: ['/api/finanzas'], alTerminar: () => setNueva(null) });
+  const cargar = useAccion(() => api.post('/api/finanzas/facturas', { ...nueva, proveedor_id: nueva.proveedor_id, total: aCentavos(nueva.total) }), { ok: 'Factura cargada', invalidar: ['/api/finanzas'], alTerminar: () => setNueva(null) });
   const autorizar = useAccion((id) => api.post(`/api/finanzas/facturas/${id}/autorizar`), { ok: 'Factura autorizada', invalidar: ['/api/finanzas'] });
-  const pagar = useAccion(() => api.post(`/api/finanzas/facturas/${pago.f.id}/pagar`, { caja_id: Number(pago.caja_id), importe: aCentavos(pago.importe) }), { ok: 'Pago registrado', invalidar: ['/api/finanzas'], alTerminar: () => setPago(null) });
+  const pagar = useAccion(() => api.post(`/api/finanzas/facturas/${pago.f.id}/pagar`, { caja_id: pago.caja_id, importe: aCentavos(pago.importe) }), { ok: 'Pago registrado', invalidar: ['/api/finanzas'], alTerminar: () => setPago(null) });
   const comprada = useAccion((id) => api.post(`/api/compras/${id}/resolver`, { estado: 'comprada' }), { ok: 'Marcada como comprada', invalidar: ['/api/compras'] });
   return (
     <>

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getDb, enTransaccion } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { permiso, puede, ambitoActividades } from '../lib/rbac.js';
-import { validar, invalido, noEncontrado, prohibido, local, json } from '../lib/util.js';
+import { validar, invalido, noEncontrado, prohibido, local, json, marcas, zId } from '../lib/util.js';
 import { auditar } from '../lib/auditoria.js';
 import { catalogo, detalleActividad } from '../services/catalogo.js';
 import { cotizar, vacantes } from '../services/precios.js';
@@ -17,7 +17,7 @@ r.use(requiereSesion);
 /** El delegado (Gx) solo gestiona su actividad. */
 function exigirAmbito(req, actividadId) {
   if (puede(req.usuario, 'actividades', 'gestionar')) return;
-  if (puede(req.usuario, 'actividades', 'gestionar_ambito') && ambitoActividades(req.usuario).includes(Number(actividadId))) return;
+  if (puede(req.usuario, 'actividades', 'gestionar_ambito') && ambitoActividades(req.usuario).includes(String(actividadId))) return;
   throw prohibido('Solo podés gestionar tu actividad');
 }
 
@@ -28,21 +28,21 @@ r.get('/', permiso('actividades', 'leer', 'leer_ambito'), (req, res) => {
 });
 
 r.get('/:id', permiso('actividades', 'leer', 'leer_ambito'), (req, res) => {
-  const a = detalleActividad(Number(req.params.id));
+  const a = detalleActividad(req.params.id);
   if (!a) throw noEncontrado('Actividad');
   res.json(a);
 });
 
 const actividadSchema = z.object({
   nombre: z.string().min(2), tipo: z.enum(['deportiva', 'acuatica', 'cultural', 'social']), descripcion: z.string().max(600).optional(),
-  icono: z.string().max(40).optional(), subcomision_id: z.number().int().nullable().optional(), dia_vencimiento: z.number().int().min(1).max(28).default(10),
+  icono: z.string().max(40).optional(), subcomision_id: zId.nullable().optional(), dia_vencimiento: z.number().int().min(1).max(28).default(10),
   activa: z.boolean().default(true),
 });
 
 r.post('/', permiso('actividades', 'gestionar'), (req, res) => {
   const d = validar(actividadSchema, req.body);
-  const id = getDb().prepare('INSERT INTO actividades (nombre, tipo, descripcion, icono, subcomision_id, dia_vencimiento, activa) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(d.nombre, d.tipo, d.descripcion ?? null, d.icono ?? 'sports', d.subcomision_id ?? null, d.dia_vencimiento, d.activa ? 1 : 0).lastInsertRowid;
+  const id = getDb().prepare('INSERT INTO actividades (nombre, tipo, descripcion, icono, subcomision_id, dia_vencimiento, activa) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id')
+    .get(d.nombre, d.tipo, d.descripcion ?? null, d.icono ?? 'sports', d.subcomision_id ?? null, d.dia_vencimiento, d.activa ? 1 : 0).id;
   auditar(req, 'crear', 'actividades', id, null, d);
   res.status(201).json({ id });
 });
@@ -54,16 +54,16 @@ r.put('/:id', (req, res) => {
   const antes = db.prepare('SELECT * FROM actividades WHERE id = ?').get(req.params.id);
   db.prepare('UPDATE actividades SET nombre = ?, tipo = ?, descripcion = ?, icono = ?, subcomision_id = ?, dia_vencimiento = ?, activa = ? WHERE id = ?')
     .run(d.nombre, d.tipo, d.descripcion ?? null, d.icono ?? antes.icono, d.subcomision_id ?? null, d.dia_vencimiento, d.activa ? 1 : 0, req.params.id);
-  auditar(req, 'editar', 'actividades', Number(req.params.id), antes, d);
+  auditar(req, 'editar', 'actividades', req.params.id, antes, d);
   res.json({ ok: true });
 });
 
 // ---------- Grupos y horarios ----------
 const grupoSchema = z.object({
-  actividad_id: z.number().int(), temporada_id: z.number().int().nullable().optional(), nombre: z.string().min(2),
+  actividad_id: zId, temporada_id: zId.nullable().optional(), nombre: z.string().min(2),
   edad_min: z.number().int().nullable().optional(), edad_max: z.number().int().nullable().optional(), cupo: z.number().int().min(1),
-  profesor_id: z.number().int().nullable().optional(),
-  horarios: z.array(z.object({ dia_semana: z.number().int().min(0).max(6), hora_inicio: z.string().regex(/^\d{2}:\d{2}$/), hora_fin: z.string().regex(/^\d{2}:\d{2}$/), espacio_id: z.number().int().nullable().optional() })).default([]),
+  profesor_id: zId.nullable().optional(),
+  horarios: z.array(z.object({ dia_semana: z.number().int().min(0).max(6), hora_inicio: z.string().regex(/^\d{2}:\d{2}$/), hora_fin: z.string().regex(/^\d{2}:\d{2}$/), espacio_id: zId.nullable().optional() })).default([]),
 });
 
 function guardarGrupo(id, d) {
@@ -76,7 +76,7 @@ function guardarGrupo(id, d) {
       db.prepare('UPDATE grupos SET actividad_id = ?, temporada_id = ?, nombre = ?, edad_min = ?, edad_max = ?, cupo = ?, profesor_id = ? WHERE id = ?').run(...vals, id);
       db.prepare('DELETE FROM horarios WHERE grupo_id = ?').run(id);
     } else {
-      id = db.prepare('INSERT INTO grupos (actividad_id, temporada_id, nombre, edad_min, edad_max, cupo, profesor_id) VALUES (?, ?, ?, ?, ?, ?, ?)').run(...vals).lastInsertRowid;
+      id = db.prepare('INSERT INTO grupos (actividad_id, temporada_id, nombre, edad_min, edad_max, cupo, profesor_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id').get(...vals).id;
     }
     for (const h of d.horarios) {
       if (h.hora_fin <= h.hora_inicio) throw invalido('La hora de fin debe ser posterior a la de inicio');
@@ -96,8 +96,8 @@ r.post('/grupos', (req, res) => {
 r.put('/grupos/:id', (req, res) => {
   const d = validar(grupoSchema, req.body);
   exigirAmbito(req, d.actividad_id);
-  guardarGrupo(Number(req.params.id), d);
-  auditar(req, 'editar', 'grupos', Number(req.params.id), null, d);
+  guardarGrupo(req.params.id, d);
+  auditar(req, 'editar', 'grupos', req.params.id, null, d);
   res.json({ ok: true });
 });
 
@@ -117,12 +117,13 @@ r.get('/inscripciones/lista', permiso('inscripciones', 'leer', 'leer_ambito'), (
   const db = getDb();
   const filtros = [];
   const params = [];
-  if (req.query.actividad_id) { filtros.push('g.actividad_id = ?'); params.push(Number(req.query.actividad_id)); }
-  if (req.query.grupo_id) { filtros.push('g.id = ?'); params.push(Number(req.query.grupo_id)); }
+  if (req.query.actividad_id) { filtros.push('g.actividad_id = ?'); params.push(String(req.query.actividad_id)); }
+  if (req.query.grupo_id) { filtros.push('g.id = ?'); params.push(String(req.query.grupo_id)); }
   if (req.query.estado) { filtros.push('i.estado = ?'); params.push(req.query.estado); } else filtros.push(`i.estado != 'baja'`);
   if (!puede(req.usuario, 'inscripciones', 'leer')) {
     const ambito = ambitoActividades(req.usuario);
-    filtros.push(`g.actividad_id IN (${ambito.length ? ambito.join(',') : '-1'})`);
+    filtros.push(`g.actividad_id IN (${marcas(ambito)})`);
+    params.push(...ambito);
   }
   res.json({
     inscripciones: db.prepare(`SELECT i.*, p.nombre, p.apellido, s.nro_socio, a.nombre AS actividad, g.nombre AS grupo, d.nombre AS descuento
@@ -138,7 +139,7 @@ r.get('/inscripciones/lista', permiso('inscripciones', 'leer', 'leer_ambito'), (
 });
 
 r.post('/inscripciones', permiso('inscripciones', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ persona_id: z.number().int(), grupo_id: z.number().int(), frecuencia: z.number().int().min(0).max(7), descuento_id: z.number().int().nullable().optional() }), req.body);
+  const d = validar(z.object({ persona_id: zId, grupo_id: zId, frecuencia: z.number().int().min(0).max(7), descuento_id: zId.nullable().optional() }), req.body);
   const out = enTransaccion(() => {
     const db = getDb();
     const g = db.prepare('SELECT g.*, a.nombre AS actividad, a.dia_vencimiento FROM grupos g JOIN actividades a ON a.id = g.actividad_id WHERE g.id = ?').get(d.grupo_id);
@@ -147,8 +148,8 @@ r.post('/inscripciones', permiso('inscripciones', 'gestionar'), (req, res) => {
     const precio = cotizar({ personaId: d.persona_id, actividadId: g.actividad_id, frecuencia: d.frecuencia, descuentoId: d.descuento_id ?? null });
     const apto = estadoApto(d.persona_id, g.actividad_id);
     const hoy = local().fecha;
-    const id = db.prepare('INSERT INTO inscripciones (persona_id, grupo_id, frecuencia_semanal, desde, estado, descuento_id) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(d.persona_id, g.id, d.frecuencia, hoy, apto.requiere && !apto.vigente ? 'pendiente_apto' : 'activa', precio.descuento_id).lastInsertRowid;
+    const id = db.prepare('INSERT INTO inscripciones (persona_id, grupo_id, frecuencia_semanal, desde, estado, descuento_id) VALUES (?, ?, ?, ?, ?, ?) RETURNING id')
+      .get(d.persona_id, g.id, d.frecuencia, hoy, apto.requiere && !apto.vigente ? 'pendiente_apto' : 'activa', precio.descuento_id).id;
     crearCargo({ personaId: d.persona_id, conceptoTipo: 'arancel', descripcion: `${g.actividad} ${local().periodo}`, periodo: local().periodo, importe: precio.total,
       vencimiento: hoy, origenTipo: 'inscripcion', origenId: id });
     return { id, total: precio.total };
@@ -185,26 +186,26 @@ r.get('/tarifario/todo', permiso('actividades', 'leer', 'leer_ambito'), (_req, r
 });
 
 r.post('/tarifario/aranceles', permiso('actividades', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ actividad_id: z.number().int(), frecuencia: z.number().int().min(0).max(7), descripcion: z.string().optional(),
+  const d = validar(z.object({ actividad_id: zId, frecuencia: z.number().int().min(0).max(7), descripcion: z.string().optional(),
     valor_socio: z.number().int().positive(), valor_no_socio: z.number().int().positive(), vigente_desde: z.string(), vigente_hasta: z.string().nullable().optional() }), req.body);
   const db = getDb();
   // Un nuevo valor cierra la vigencia del anterior para la misma frecuencia.
   db.prepare(`UPDATE aranceles SET vigente_hasta = date(?, '-1 day') WHERE actividad_id = ? AND frecuencia = ? AND (vigente_hasta IS NULL OR vigente_hasta >= ?) AND vigente_desde < ?`)
     .run(d.vigente_desde, d.actividad_id, d.frecuencia, d.vigente_desde, d.vigente_desde);
-  const id = db.prepare('INSERT INTO aranceles (actividad_id, frecuencia, descripcion, valor_socio, valor_no_socio, vigente_desde, vigente_hasta) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(d.actividad_id, d.frecuencia, d.descripcion ?? null, d.valor_socio, d.valor_no_socio, d.vigente_desde, d.vigente_hasta ?? null).lastInsertRowid;
+  const id = db.prepare('INSERT INTO aranceles (actividad_id, frecuencia, descripcion, valor_socio, valor_no_socio, vigente_desde, vigente_hasta) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id')
+    .get(d.actividad_id, d.frecuencia, d.descripcion ?? null, d.valor_socio, d.valor_no_socio, d.vigente_desde, d.vigente_hasta ?? null).id;
   auditar(req, 'nuevo_arancel', 'aranceles', id, null, d);
   res.status(201).json({ id });
 });
 
 r.post('/tarifario/descuentos', permiso('actividades', 'gestionar'), (req, res) => {
-  const d = validar(z.object({ id: z.number().int().optional(), nombre: z.string().min(2), tipo: z.enum(['porcentaje', 'monto']), valor: z.number().int().positive(),
+  const d = validar(z.object({ id: zId.optional(), nombre: z.string().min(2), tipo: z.enum(['porcentaje', 'monto']), valor: z.number().int().positive(),
     condicion: z.enum(['jubilado', 'grupo_familiar', 'horario_promocional', 'manual']), solo_socios: z.boolean().default(true), activo: z.boolean().default(true) }), req.body);
   const db = getDb();
   const vals = [d.nombre, d.tipo, d.valor, d.condicion, d.solo_socios ? 1 : 0, d.activo ? 1 : 0];
   const id = d.id
     ? (db.prepare('UPDATE descuentos SET nombre = ?, tipo = ?, valor = ?, condicion = ?, solo_socios = ?, activo = ? WHERE id = ?').run(...vals, d.id), d.id)
-    : db.prepare('INSERT INTO descuentos (nombre, tipo, valor, condicion, solo_socios, activo) VALUES (?, ?, ?, ?, ?, ?)').run(...vals).lastInsertRowid;
+    : db.prepare('INSERT INTO descuentos (nombre, tipo, valor, condicion, solo_socios, activo) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').get(...vals).id;
   auditar(req, 'guardar_descuento', 'descuentos', id, null, d);
   res.json({ id });
 });
@@ -222,13 +223,13 @@ r.put('/tarifario/categorias/:id', permiso('actividades', 'gestionar'), (req, re
 
 // ---------- Requisitos médicos por actividad ----------
 r.put('/:id/requisitos', permiso('turnos_medicos', 'gestionar'), (req, res) => {
-  const d = validar(z.array(z.object({ tipo_revision_id: z.number().int(), bloqueante: z.boolean(), dias_gracia: z.number().int().min(0).max(60) })), req.body);
+  const d = validar(z.array(z.object({ tipo_revision_id: zId, bloqueante: z.boolean(), dias_gracia: z.number().int().min(0).max(60) })), req.body);
   const db = getDb();
   enTransaccion(() => {
     db.prepare('DELETE FROM actividad_requisitos WHERE actividad_id = ?').run(req.params.id);
     for (const x of d) db.prepare('INSERT INTO actividad_requisitos VALUES (?, ?, ?, ?)').run(req.params.id, x.tipo_revision_id, x.bloqueante ? 1 : 0, x.dias_gracia);
   });
-  auditar(req, 'requisitos_medicos', 'actividades', Number(req.params.id), null, d);
+  auditar(req, 'requisitos_medicos', 'actividades', req.params.id, null, d);
   res.json({ ok: true });
 });
 

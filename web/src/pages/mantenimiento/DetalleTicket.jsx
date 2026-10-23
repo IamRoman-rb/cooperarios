@@ -10,7 +10,7 @@ export default function DetalleTicket() {
   return (
     <div className="max-w-3xl">
       <Encabezado titulo="Detalle del ticket" subtitulo="Marcar como realizado exige adjuntar fotos del trabajo terminado." volver="/mantenimiento/inicio" />
-      <Tarjeta><Detalle id={Number(id)} usuarioId={usuario.id} gestor={puede('tickets', 'gestionar')} /></Tarjeta>
+      <Tarjeta><Detalle id={id} usuarioId={usuario.id} gestor={puede('tickets', 'gestionar')} /></Tarjeta>
     </div>
   );
 }

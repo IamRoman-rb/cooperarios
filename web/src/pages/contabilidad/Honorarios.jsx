@@ -11,7 +11,7 @@ export default function Honorarios() {
   const [liq, setLiq] = useState(null);
   const [pago, setPago] = useState(null);
   const liquidar = useAccion(() => api.post('/api/finanzas/honorarios/liquidar', { periodo: liq.periodo, valor_clase: aCentavos(liq.valor) }), { ok: (r) => `${r.liquidados} profesores liquidados`, invalidar: ['/api/finanzas'], alTerminar: () => setLiq(null) });
-  const pagar = useAccion(() => api.post(`/api/finanzas/honorarios/${pago.id}/pagar`, { caja_id: Number(pago.caja_id) }), { ok: 'Honorario pagado', invalidar: ['/api/finanzas'], alTerminar: () => setPago(null) });
+  const pagar = useAccion(() => api.post(`/api/finanzas/honorarios/${pago.id}/pagar`, { caja_id: pago.caja_id }), { ok: 'Honorario pagado', invalidar: ['/api/finanzas'], alTerminar: () => setPago(null) });
   const anterior = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
   return (
     <>

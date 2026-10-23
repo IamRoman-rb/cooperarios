@@ -40,7 +40,7 @@ export default function Fichaje({ modo }) {
   // Grupo en curso por defecto: el que tiene clase ahora.
   const ahora = new Date();
   const grupoEnCurso = grupos.data?.find((g) => g.horarios.some((h) => h.dia_semana === ahora.getDay() && h.hora_inicio <= hora(ahora.toISOString()) && hora(ahora.toISOString()) <= h.hora_fin));
-  const destinoId = Number(destino || (esProfesor ? grupoEnCurso?.id ?? grupos.data?.[0]?.id : puntos.data?.[0]?.id) || 0);
+  const destinoId = destino || (esProfesor ? grupoEnCurso?.id ?? grupos.data?.[0]?.id : puntos.data?.[0]?.id) || null;
 
   const fichar = useAccion((cuerpo) => api.post(esProfesor ? '/api/acceso/fichar-grupo' : '/api/acceso/fichar', esProfesor ? { ...cuerpo, grupo_id: destinoId } : { ...cuerpo, punto_acceso_id: destinoId }), {
     invalidar: ['/api/profesor', '/api/acceso'],

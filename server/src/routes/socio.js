@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getDb, ahora, enTransaccion } from '../db/index.js';
 import { requiereSesion } from '../lib/auth.js';
 import { permiso } from '../lib/rbac.js';
-import { validar, invalido, prohibido, noEncontrado, local, sumarDias, edad, json } from '../lib/util.js';
+import { validar, invalido, prohibido, noEncontrado, local, sumarDias, edad, json, zId } from '../lib/util.js';
 import { auditar, notificar } from '../lib/auditoria.js';
 import { emitirQr } from '../services/qr.js';
 import { estadoPorActividad, estadoApto } from '../services/habilitacion.js';
@@ -31,7 +31,7 @@ export function personasACargo(usuario) {
 }
 
 function personaObjetivo(req, valor = req.query.persona_id ?? req.body?.persona_id) {
-  const id = valor ? Number(valor) : req.usuario.persona_id;
+  const id = valor ? String(valor) : req.usuario.persona_id;
   if (!personasACargo(req.usuario).includes(id)) throw prohibido('No gestionás a esa persona');
   return id;
 }
@@ -214,10 +214,10 @@ r.get('/cotizar', (req, res) => {
 
 r.post('/inscribirme', (req, res) => {
   const datos = validar(z.object({
-    grupo_id: z.number().int(),
+    grupo_id: zId,
     frecuencia: z.number().int().min(0).max(7),
-    descuento_id: z.number().int().nullable().optional(),
-    persona_id: z.number().int().optional(),
+    descuento_id: zId.nullable().optional(),
+    persona_id: zId.optional(),
     lista_espera: z.boolean().optional(),
   }), req.body);
   const personaId = personaObjetivo(req, datos.persona_id);
@@ -239,8 +239,8 @@ r.post('/inscribirme', (req, res) => {
     const apto = estadoApto(personaId, g.actividad_id);
     const estado = apto.requiere && !apto.vigente ? 'pendiente_apto' : 'activa';
     const hoy = local().fecha;
-    const id = db.prepare(`INSERT INTO inscripciones (persona_id, grupo_id, frecuencia_semanal, desde, estado, descuento_id) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(personaId, g.id, datos.frecuencia, hoy, estado, precio.descuento_id).lastInsertRowid;
+    const id = db.prepare(`INSERT INTO inscripciones (persona_id, grupo_id, frecuencia_semanal, desde, estado, descuento_id) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`)
+      .get(personaId, g.id, datos.frecuencia, hoy, estado, precio.descuento_id).id;
     db.prepare('DELETE FROM lista_espera WHERE grupo_id = ? AND persona_id = ?').run(g.id, personaId);
     // Primer cargo: período en curso, con vencimiento el día configurado de la actividad (o en 5 días si ya pasó).
     const periodo = local().periodo;
@@ -263,12 +263,12 @@ r.get('/reservas', (req, res) => {
       WHERE r.persona_id = ? ORDER BY r.inicio DESC LIMIT 30`).all(req.usuario.persona_id),
   });
 });
-r.get('/reservas/disponibilidad', (req, res) => res.json(disponibilidad(Number(req.query.espacio_id), String(req.query.fecha))));
+r.get('/reservas/disponibilidad', (req, res) => res.json(disponibilidad(String(req.query.espacio_id), String(req.query.fecha))));
 r.post('/reservas', (req, res) => {
-  const datos = validar(z.object({ espacio_id: z.number().int(), inicio: z.string(), fin: z.string() }), req.body);
+  const datos = validar(z.object({ espacio_id: zId, inicio: z.string(), fin: z.string() }), req.body);
   res.status(201).json(reservar({ ...datos, personaId: req.usuario.persona_id, tipo: 'socio' }, req));
 });
-r.post('/reservas/:id/cancelar', (req, res) => res.json(cancelarReserva(Number(req.params.id), req, { propia: true })));
+r.post('/reservas/:id/cancelar', (req, res) => res.json(cancelarReserva(req.params.id, req, { propia: true })));
 
 // ---------- Estado de cuenta ----------
 r.get('/cuenta', (req, res) => {
@@ -319,10 +319,10 @@ function cargosValidados(req, cargoIds) {
 }
 
 r.post('/pagos/mercadopago', async (req, res) => {
-  const { cargo_ids } = validar(z.object({ cargo_ids: z.array(z.number().int()).min(1) }), req.body);
+  const { cargo_ids } = validar(z.object({ cargo_ids: z.array(zId).min(1) }), req.body);
   const { personaId, total, cargos } = cargosValidados(req, cargo_ids);
   const db = getDb();
-  const id = db.prepare(`INSERT INTO pagos_online (persona_id, cargo_ids, proveedor, monto) VALUES (?, ?, 'mercadopago', ?)`).run(personaId, JSON.stringify(cargo_ids), total).lastInsertRowid;
+  const id = db.prepare(`INSERT INTO pagos_online (persona_id, cargo_ids, proveedor, monto) VALUES (?, ?, 'mercadopago', ?) RETURNING id`).get(personaId, JSON.stringify(cargo_ids), total).id;
   const pref = await crearPreferencia({ pagoOnlineId: id, items: cargos.map((c) => ({ titulo: c.descripcion, importe: saldoCargo(c.id) })), payer: { email: req.usuario.email } });
   db.prepare('UPDATE pagos_online SET preferencia_id = ? WHERE id = ?').run(pref.preferencia_id, id);
   res.status(201).json({ id, total, init_point: pref.init_point, simulado: config.mercadoPago.simulado });
@@ -340,7 +340,7 @@ r.post('/pagos/online/:id/simular', (req, res) => {
 
 r.post('/pagos/transferencia', subida('comprobantes', { maxMb: 5, campos: 1 }).single('comprobante'), (req, res) => {
   const datos = validar(z.object({
-    cargo_ids: z.string().transform((s) => json(s, [])).pipe(z.array(z.number().int()).min(1)),
+    cargo_ids: z.string().transform((s) => json(s, [])).pipe(z.array(zId).min(1)),
     monto: z.coerce.number().int().positive(),
     medio: z.enum(['transferencia', 'billetera']).default('transferencia'),
     referencia: z.string().max(120).optional(),
@@ -348,8 +348,8 @@ r.post('/pagos/transferencia', subida('comprobantes', { maxMb: 5, campos: 1 }).s
   if (!req.file) throw invalido('Adjuntá el comprobante de la transferencia');
   const { personaId, total } = cargosValidados(req, datos.cargo_ids);
   if (datos.monto > total) throw invalido('El monto informado supera la deuda seleccionada');
-  const id = getDb().prepare(`INSERT INTO transferencias_informadas (persona_id, cargo_ids, monto, medio, comprobante_archivo, referencia) VALUES (?, ?, ?, ?, ?, ?)`)
-    .run(personaId, JSON.stringify(datos.cargo_ids), datos.monto, datos.medio, rutaRelativa('comprobantes', req.file), datos.referencia ?? null).lastInsertRowid;
+  const id = getDb().prepare(`INSERT INTO transferencias_informadas (persona_id, cargo_ids, monto, medio, comprobante_archivo, referencia) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`)
+    .get(personaId, JSON.stringify(datos.cargo_ids), datos.monto, datos.medio, rutaRelativa('comprobantes', req.file), datos.referencia ?? null).id;
   notificar({ rol: 'admin', tipo: 'cobranza', titulo: 'Nueva transferencia informada para aprobar', referencia: '/admin/cobranzas' });
   notificar({ rol: 'contabilidad', tipo: 'cobranza', titulo: 'Nueva transferencia informada para aprobar', referencia: '/contabilidad/conciliacion' });
   res.status(201).json({ id, estado: 'pendiente' });
@@ -381,21 +381,21 @@ r.get('/revision-medica', (req, res) => {
 });
 
 r.post('/revision-medica/turno', (req, res) => {
-  const datos = validar(z.object({ persona_id: z.number().int().optional(), tipo_revision_id: z.number().int(), inicio: z.string() }), req.body);
+  const datos = validar(z.object({ persona_id: zId.optional(), tipo_revision_id: zId, inicio: z.string() }), req.body);
   const personaId = personaObjetivo(req, datos.persona_id);
   if (new Date(datos.inicio) < new Date()) throw invalido('Elegí una fecha futura');
-  const id = getDb().prepare(`INSERT INTO turnos_revision (persona_id, tipo_revision_id, inicio, estado) VALUES (?, ?, ?, 'solicitado')`)
-    .run(personaId, datos.tipo_revision_id, new Date(datos.inicio).toISOString()).lastInsertRowid;
+  const id = getDb().prepare(`INSERT INTO turnos_revision (persona_id, tipo_revision_id, inicio, estado) VALUES (?, ?, ?, 'solicitado') RETURNING id`)
+    .get(personaId, datos.tipo_revision_id, new Date(datos.inicio).toISOString()).id;
   notificar({ rol: 'auxiliar', tipo: 'turno', titulo: 'Nuevo pedido de turno de revisión médica', referencia: '/revision/agenda' });
   res.status(201).json({ id });
 });
 
 r.post('/revision-medica/certificado', subida('certificados', { maxMb: 6, campos: 1 }).single('certificado'), (req, res) => {
-  const datos = validar(z.object({ persona_id: z.coerce.number().int().optional(), tipo_revision_id: z.coerce.number().int() }), req.body);
+  const datos = validar(z.object({ persona_id: zId.optional(), tipo_revision_id: zId }), req.body);
   const personaId = personaObjetivo(req, datos.persona_id);
   if (!req.file) throw invalido('Adjuntá el certificado (PDF o imagen)');
   const id = getDb().prepare(`INSERT INTO revisiones_medicas (persona_id, tipo_revision_id, fecha, resultado, certificado_externo, cargado_por)
-    VALUES (?, ?, ?, 'pendiente_validacion', ?, ?)`).run(personaId, datos.tipo_revision_id, local().fecha, rutaRelativa('certificados', req.file), req.usuario.id).lastInsertRowid;
+    VALUES (?, ?, ?, 'pendiente_validacion', ?, ?) RETURNING id`).get(personaId, datos.tipo_revision_id, local().fecha, rutaRelativa('certificados', req.file), req.usuario.id).id;
   notificar({ rol: 'medico', tipo: 'revision_medica', titulo: 'Nuevo certificado externo para validar', referencia: '/medico/certificados' });
   res.status(201).json({ id });
 });
@@ -416,7 +416,7 @@ r.post('/invitados', (req, res) => {
   const out = enTransaccion(() => {
     const importe = 650000;
     const cargoId = crearCargo({ personaId: socio.persona_id, conceptoTipo: 'invitado', descripcion: `Invitado: ${datos.nombre}`, periodo: datos.fecha.slice(0, 7), importe, vencimiento: datos.fecha, origenTipo: 'invitado' });
-    const id = db.prepare('INSERT INTO invitados (nombre, dni, socio_anfitrion_id, fecha, importe, cargo_id) VALUES (?, ?, ?, ?, ?, ?)').run(datos.nombre, datos.dni, socio.id, datos.fecha, importe, cargoId).lastInsertRowid;
+    const id = db.prepare('INSERT INTO invitados (nombre, dni, socio_anfitrion_id, fecha, importe, cargo_id) VALUES (?, ?, ?, ?, ?, ?) RETURNING id').get(datos.nombre, datos.dni, socio.id, datos.fecha, importe, cargoId).id;
     return { id, cargo_id: cargoId };
   });
   res.status(201).json(out);
@@ -446,11 +446,11 @@ r.get('/solicitudes', (req, res) => {
 r.post('/solicitudes', (req, res) => {
   const datos = validar(z.object({
     tipo: z.enum(['alta_familiar', 'baja', 'cambio_categoria', 'reclamo', 'sugerencia']),
-    persona_id: z.number().int().optional(),
+    persona_id: zId.optional(),
     datos: z.record(z.any()).default({}),
   }), req.body);
   const personaId = personaObjetivo(req, datos.persona_id);
-  const id = getDb().prepare('INSERT INTO solicitudes (persona_id, tipo, datos_json) VALUES (?, ?, ?)').run(personaId, datos.tipo, JSON.stringify(datos.datos)).lastInsertRowid;
+  const id = getDb().prepare('INSERT INTO solicitudes (persona_id, tipo, datos_json) VALUES (?, ?, ?) RETURNING id').get(personaId, datos.tipo, JSON.stringify(datos.datos)).id;
   notificar({ rol: 'admin', tipo: 'solicitud', titulo: `Nueva solicitud: ${datos.tipo.replace('_', ' ')}`, referencia: '/admin/solicitudes' });
   res.status(201).json({ id });
 });
@@ -468,7 +468,7 @@ r.get('/privacidad', (req, res) => {
 });
 
 r.post('/privacidad/consentimientos', (req, res) => {
-  const datos = validar(z.object({ persona_id: z.number().int().optional(), tipo: z.enum(['datos_personales', 'datos_salud', 'imagen', 'comunicaciones']), aceptar: z.boolean() }), req.body);
+  const datos = validar(z.object({ persona_id: zId.optional(), tipo: z.enum(['datos_personales', 'datos_salud', 'imagen', 'comunicaciones']), aceptar: z.boolean() }), req.body);
   const personaId = personaObjetivo(req, datos.persona_id);
   const db = getDb();
   if (datos.aceptar) {
@@ -505,7 +505,7 @@ r.get('/privacidad/mis-datos', (req, res) => {
 
 r.post('/privacidad/solicitud', (req, res) => {
   const datos = validar(z.object({ derecho: z.enum(['acceso', 'rectificacion', 'actualizacion', 'supresion']), detalle: z.string().min(5).max(1000) }), req.body);
-  const id = getDb().prepare(`INSERT INTO solicitudes (persona_id, tipo, datos_json) VALUES (?, 'derechos_datos', ?)`).run(req.usuario.persona_id, JSON.stringify(datos)).lastInsertRowid;
+  const id = getDb().prepare(`INSERT INTO solicitudes (persona_id, tipo, datos_json) VALUES (?, 'derechos_datos', ?) RETURNING id`).get(req.usuario.persona_id, JSON.stringify(datos)).id;
   notificar({ rol: 'admin', tipo: 'privacidad', titulo: `Solicitud de ${datos.derecho} de datos personales`, referencia: '/admin/privacidad' });
   // Plazos legales: acceso 10 días corridos (art. 14); rectificación y supresión 5 días hábiles (art. 16).
   res.status(201).json({ id, plazo: datos.derecho === 'acceso' ? '10 días corridos' : '5 días hábiles' });

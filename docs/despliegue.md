@@ -91,7 +91,19 @@ Configurar `MP_ACCESS_TOKEN` y `MP_WEBHOOK_SECRET` y registrar la URL de notific
 `https://cooperariosclub.com.ar/api/pagos/webhook/mercadopago`. Las notificaciones se verifican con la firma
 `x-signature` y el pago se consulta a la API antes de acreditarlo.
 
-## 7. Mantenimiento
+## 7. Identificadores (UUID)
+
+- Todos los registros usan como id un **UUID v7** en texto (por ejemplo `01a1689d-0906-7236-8e0a-08e068f92e6e`).
+  Son ordenables por fecha de creación, así que ordenar por id sigue dando el orden de alta.
+- Los genera la base con `DEFAULT (uuid7())`, una función que la aplicación registra al abrir la conexión
+  (`server/src/lib/ids.js`). Desde otra herramienta (por ejemplo, el cliente `sqlite3`) hay que pasar el id explícito
+  al insertar.
+- Las claves de negocio se mantienen numéricas o legibles: número de socio, código de ticket (`MT-2026-0001`)
+  y número de comprobante (`R-0001-00000001`).
+- Las bases de desarrollo creadas antes de este cambio se detectan al iniciar: corré `npm run db:reset` con el
+  servidor detenido.
+
+## 8. Mantenimiento
 
 - `npm audit` y actualización de dependencias mensual, con backup previo.
 - Las migraciones nuevas se agregan en `server/src/db/migrations/` con un número correlativo y se aplican al iniciar.

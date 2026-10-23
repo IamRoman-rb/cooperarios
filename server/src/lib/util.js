@@ -1,4 +1,6 @@
+import { z } from 'zod';
 import { config } from '../config.js';
+import { ES_UUID } from './ids.js';
 
 export class HttpError extends Error {
   constructor(status, mensaje, detalle) {
@@ -12,6 +14,9 @@ export const noEncontrado = (que = 'Recurso') => new HttpError(404, `${que} no e
 export const prohibido = (mensaje = 'No tenés permiso para esta acción') => new HttpError(403, mensaje);
 export const invalido = (mensaje, detalle) => new HttpError(400, mensaje, detalle);
 export const conflicto = (mensaje) => new HttpError(409, mensaje);
+
+/** Identificador de cualquier registro (UUID v7). */
+export const zId = z.string().regex(ES_UUID, 'Identificador inválido');
 
 /** Valida con un esquema Zod y lanza 400 con el detalle de los campos. */
 export function validar(esquema, datos) {
@@ -74,6 +79,9 @@ export const json = (texto, defecto = null) => {
     return defecto;
   }
 };
+
+/** Marcadores para `IN (...)`: uno por valor; con la lista vacía, `NULL` (no coincide con nada). */
+export const marcas = (lista) => lista.map(() => '?').join(', ') || 'NULL';
 
 /** Envuelve el resultado paginado de una consulta. */
 export function paginar(req) {
